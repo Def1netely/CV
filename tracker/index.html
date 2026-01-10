@@ -168,7 +168,7 @@
       <div class="card">
         <div class="hd">
           <h2>Overall Summary</h2>
-          <div class="muted" style="font-size:12px;">Counts use unique Student IDs per day.</div>
+          <div class="muted" style="font-size:12px;">Counts use unique Student Names per day.</div>
         </div>
         <div class="bd" id="overallSummary"></div>
       </div>
@@ -359,7 +359,7 @@
     // =========================
     // CONFIG (YOU EDIT THIS)
     // =========================
-    const API_URL = "https://script.google.com/macros/s/AKfycbzL6HmwQwuUypeWpAOhYZt_u7U-xwDHFgEWHKAq__tXMdvL_c7ux-qhkbLkYSJ5wSLRvA/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbxsEn-uAHbt8exS3RuLiEMe9jZY4-3kCEc5Tud9W1hIYA1h6ZCLWgaw-5n6-hI1uJzj/exec";
     const FIXED_AMOUNT = 60;
 
     // Dropdown options are still stored locally for convenience
@@ -720,9 +720,11 @@
         receiptId: v.data.receiptId,
         studentName: v.data.studentName,
         yearLevel: v.data.yearLevel,
-        course: v.data.course,
-        amount: FIXED_AMOUNT
+        course: v.data.course
       };
+
+
+
 
       try{ setStatus('Saving…'); await addPaymentToServer(payload); toast('Payment added ✅'); resetForm(); await refreshTrackerData(); }
       catch(err){ setStatus('API error'); toast(`<b>Error:</b> ${String(err.message||err)}`); }
@@ -839,15 +841,18 @@
             if(existing.has(rKey)){ skipped++; continue; }
 
             // Use JSON record values, fallback if missing
+            const studentName = String(p.studentName || "").trim();
+
             const payloadToSend = {
               day: CURRENT.day,
               college: CURRENT.college,
               receiptId: receipt,
-              studentName: String(p.studentName||"").trim(),
-              yearLevel: String(p.yearLevel||p.year||"").trim(),
-              course: String(p.course||"").trim(),
-              amount: FIXED_AMOUNT
+              studentName: studentName,
+              yearLevel: String(p.yearLevel || p.year || "").trim(),
+              course: String(p.course || "").trim()
             };
+
+
 
 
             // Basic validation
