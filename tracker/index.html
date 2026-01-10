@@ -214,22 +214,20 @@
             </div>
           </div>
           <div class="bd">
-            <div class="row">
+            <div class="row one">
               <div>
                 <label for="receiptId">Receipt ID</label>
                 <input id="receiptId" placeholder="e.g., OR-2026-0001" />
               </div>
+            </div>
+
+            <div class="row one">
               <div>
                 <label for="studentName">Student Name</label>
                 <input id="studentName" placeholder="e.g., Juan Dela Cruz" />
               </div>
             </div>
-            <div class="row one">
-              <div>
-                <label for="studentId">Student ID</label>
-                <input id="studentId" placeholder="e.g., 2023-12345" />
-              </div>
-            </div>
+
             <div class="row">
               <div>
                 <label for="yearLevel">Year Level</label>
@@ -297,10 +295,18 @@
             <details>
               <summary>Export (current tracker only)</summary>
               <div style="margin-top: 12px;" class="btns">
+                <button class="ghost" id="exportJsonBtn" type="button">Export JSON</button>
+
+                <label class="ghost" style="display:inline-flex; align-items:center; gap:10px; cursor:pointer; padding:10px 12px; border-radius:12px;">
+                  Import JSON
+                  <input id="importJsonFile" type="file" accept="application/json" style="display:none" />
+                </label>
+
                 <button class="ghost" id="exportCsvBtn" type="button">Export CSV</button>
                 <button class="ghost" id="exportPdfBtn" type="button">Export PDF</button>
                 <button class="ghost" id="exportXlsxBtn" type="button">Export Excel</button>
               </div>
+
               <p class="mini">Exports download the currently visible tracker data (selected day & college). Source of truth is Google Sheets.</p>
             </details>
           </div>
@@ -311,7 +317,7 @@
             <div class="search">
               <div>
                 <label for="q">Search</label>
-                <input id="q" placeholder="Search receipt, student name, student ID, course…" />
+                <input id="q" placeholder="Search receipt, student name, year, course…" />
               </div>
               <div>
                 <label for="filterYear">Year Level</label>
@@ -328,7 +334,6 @@
                     <th>Date</th>
                     <th>Receipt ID</th>
                     <th>Student Name</th>
-                    <th>Student ID</th>
                     <th>Year</th>
                     <th>Course</th>
                     <th class="right">Amount</th>
@@ -629,17 +634,17 @@
     function validateForm(){
       const receiptId = $("receiptId").value.trim();
       const studentName = $("studentName").value.trim();
-      const studentId = $("studentId").value.trim();
       const yearLevel = $("yearLevel").value;
       const course = $("course").value;
 
       if(!receiptId) return { ok:false, msg:"Please enter a <b>Receipt ID</b>." };
       if(!studentName) return { ok:false, msg:"Please enter a <b>Student Name</b>." };
-      if(!studentId) return { ok:false, msg:"Please enter a <b>Student ID</b>." };
       if(!yearLevel) return { ok:false, msg:"Please select a <b>Year Level</b>." };
       if(!course) return { ok:false, msg:"Please select a <b>Course</b>." };
-      return { ok:true, data:{ receiptId, studentName, studentId, yearLevel, course } };
+
+      return { ok:true, data:{ receiptId, studentName, yearLevel, course } };
     }
+
 
     async function refreshTrackerData(){
       setStatus('Loading…');
@@ -656,7 +661,6 @@
         filtered = filtered.filter(p =>
           (p.receiptId||"").toLowerCase().includes(q) ||
           (p.studentName||"").toLowerCase().includes(q) ||
-          (p.studentId||"").toLowerCase().includes(q) ||
           (p.yearLevel||"").toLowerCase().includes(q) ||
           (p.course||"").toLowerCase().includes(q)
         );
@@ -667,11 +671,20 @@
       tbody.innerHTML = "";
       for(const p of filtered){
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${prettyDate(p.timestamp || p.createdAt)}</td><td class="mono">${p.receiptId}</td><td>${p.studentName}</td><td class="mono">${p.studentId}</td><td>${p.yearLevel}</td><td>${p.course}</td><td class="right">${peso(FIXED_AMOUNT)}</td><td><button class="danger" data-del="${p.id}">Delete</button></td>`;
+        tr.innerHTML = `
+          <td>${prettyDate(p.timestamp || p.createdAt)}</td>
+          <td class="mono">${p.receiptId}</td>
+          <td>${p.studentName}</td>
+          <td>${p.yearLevel}</td>
+          <td>${p.course}</td>
+          <td class="right">${peso(FIXED_AMOUNT)}</td>
+          <td><button class="danger" data-del="${p.id}">Delete</button></td>
+        `;
+
         tbody.appendChild(tr);
       }
 
-      const uniqueStudents = new Set(TRACKER_PAYMENTS.map(p => String(p.studentId||""))).size;
+      const uniqueStudents = new Set(TRACKER_PAYMENTS.map(p => String(p.studentName||"").trim().toLowerCase()).filter(Boolean)).size;
       $("countPill").textContent = `${TRACKER_PAYMENTS.length} payment${TRACKER_PAYMENTS.length===1?"":"s"}`;
       $("statusPill").textContent = `Paid students: ${uniqueStudents} · Total: ${peso(uniqueStudents * FIXED_AMOUNT)}`;
 
@@ -688,11 +701,11 @@
     function resetForm(){
       $("receiptId").value = "";
       $("studentName").value = "";
-      $("studentId").value = "";
       $("yearLevel").selectedIndex = 0;
       $("course").selectedIndex = 0;
       $("receiptId").focus();
     }
+
 
     async function addPayment(){
       const v = validateForm();
@@ -701,7 +714,16 @@
       const dup = TRACKER_PAYMENTS.some(p => String(p.receiptId||"").toLowerCase() === receipt);
       if(dup){ toast('Receipt ID already exists in this tracker.'); return; }
 
-      const payload = { day: CURRENT.day, college: CURRENT.college, receiptId: v.data.receiptId, studentId: v.data.studentId, studentName: v.data.studentName, yearLevel: v.data.yearLevel, course: v.data.course, amount: FIXED_AMOUNT };
+      const payload = {
+        day: CURRENT.day,
+        college: CURRENT.college,
+        receiptId: v.data.receiptId,
+        studentName: v.data.studentName,
+        yearLevel: v.data.yearLevel,
+        course: v.data.course,
+        amount: FIXED_AMOUNT
+      };
+
       try{ setStatus('Saving…'); await addPaymentToServer(payload); toast('Payment added ✅'); resetForm(); await refreshTrackerData(); }
       catch(err){ setStatus('API error'); toast(`<b>Error:</b> ${String(err.message||err)}`); }
     }
@@ -711,12 +733,12 @@
         Date: prettyDate(p.timestamp || p.createdAt),
         "Receipt ID": p.receiptId,
         "Student Name": p.studentName,
-        "Student ID": p.studentId,
         "Year Level": p.yearLevel,
         College: CURRENT.college,
         Course: p.course,
         Amount: FIXED_AMOUNT
       }));
+
       const header = Object.keys(rows[0] || {Date: ""});
       const csv = [header.join(','), ...rows.map(r => header.map(h => csvEscape(r[h])).join(','))].join('\n');
       const blob = new Blob([csv], {type: 'text/csv'});
@@ -738,8 +760,15 @@
       doc.setFontSize(10);
       doc.text(`Amount per student: ₱${FIXED_AMOUNT}`, 14, 20);
       doc.text(`Records: ${TRACKER_PAYMENTS.length}`, 14, 26);
-      const head = [["Date","Receipt ID","Student Name","Student ID","Year Level","Course","Amount"]];
-      const body = TRACKER_PAYMENTS.map(p => [prettyDate(p.timestamp || p.createdAt), p.receiptId, p.studentName, p.studentId, p.yearLevel, p.course, `₱${FIXED_AMOUNT}`]);
+      const head = [["Date","Receipt ID","Student Name","Year Level","Course","Amount"]];
+      const body = TRACKER_PAYMENTS.map(p => [
+        prettyDate(p.timestamp || p.createdAt),
+        p.receiptId,
+        p.studentName,
+        p.yearLevel,
+        p.course,
+        `₱${FIXED_AMOUNT}`
+      ]);
       doc.autoTable({ startY: 32, head, body, styles: { fontSize: 8 }, theme: 'grid', margin: { left: 14, right: 14 } });
       doc.save(`day${CURRENT.day}_${CURRENT.college}_payments.pdf`);
       toast('Exported PDF');
@@ -751,18 +780,101 @@
         Date: prettyDate(p.timestamp || p.createdAt),
         "Receipt ID": p.receiptId,
         "Student Name": p.studentName,
-        "Student ID": p.studentId,
         "Year Level": p.yearLevel,
         College: CURRENT.college,
         Course: p.course,
         Amount: FIXED_AMOUNT
       }));
+
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Payments');
       XLSX.writeFile(wb, `day${CURRENT.day}_${CURRENT.college}_payments.xlsx`);
       toast('Exported Excel');
     }
+
+    function exportTrackerJSON(){
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        day: CURRENT.day,
+        college: CURRENT.college,
+        fixedAmount: FIXED_AMOUNT,
+        payments: TRACKER_PAYMENTS
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `day${CURRENT.day}_${CURRENT.college}_payments.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("Exported JSON");
+    }
+
+    async function importTrackerJSON(file){
+      const reader = new FileReader();
+
+      reader.onload = async () => {
+        try{
+          const payload = JSON.parse(reader.result);
+
+          // Accept either {payments:[...]} or an array directly
+          const list = Array.isArray(payload) ? payload : payload.payments;
+          if(!Array.isArray(list)) throw new Error("Invalid JSON format");
+
+          // Build set of existing receipt IDs to skip duplicates
+          const existing = new Set(TRACKER_PAYMENTS.map(p => String(p.receiptId||"").toLowerCase()));
+
+          let added = 0;
+          let skipped = 0;
+
+          setStatus("Importing…");
+
+          for(const p of list){
+            const receipt = String(p.receiptId||"").trim();
+            if(!receipt){ skipped++; continue; }
+
+            const rKey = receipt.toLowerCase();
+            if(existing.has(rKey)){ skipped++; continue; }
+
+            // Use JSON record values, fallback if missing
+            const payloadToSend = {
+              day: CURRENT.day,
+              college: CURRENT.college,
+              receiptId: receipt,
+              studentName: String(p.studentName||"").trim(),
+              yearLevel: String(p.yearLevel||p.year||"").trim(),
+              course: String(p.course||"").trim(),
+              amount: FIXED_AMOUNT
+            };
+
+
+            // Basic validation
+            if(!payloadToSend.studentName || !payloadToSend.yearLevel || !payloadToSend.course){
+              skipped++;
+              continue;
+            }
+
+
+            await addPaymentToServer(payloadToSend);
+            existing.add(rKey);
+            added++;
+          }
+
+          toast(`Import done ✅ Added: <b>${added}</b>, Skipped: <b>${skipped}</b>`);
+          await refreshTrackerData();
+          setStatus("Online");
+
+        }catch(err){
+          setStatus("Import error");
+          toast(`<b>Import failed:</b> ${String(err.message||err)}`);
+        }
+      };
+
+      reader.readAsText(file);
+    }
+
 
     function saveYearsFromEditor(){
       const opts = loadOptions();
@@ -809,7 +921,19 @@
       $("exportPdfBtn").addEventListener('click', exportTrackerPDF);
       $("exportXlsxBtn").addEventListener('click', exportTrackerExcel);
 
-      [$("receiptId"), $("studentName"), $("studentId")].forEach(el => el.addEventListener('keydown', (e)=>{ if(e.key==='Enter') addPayment(); }));
+      $("exportJsonBtn").addEventListener('click', exportTrackerJSON);
+
+      $("importJsonFile").addEventListener("change", async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if(file) await importTrackerJSON(file);
+        e.target.value = "";
+      });
+
+
+      [$("receiptId"), $("studentName")].forEach(el =>
+        el.addEventListener('keydown', (e)=>{ if(e.key==='Enter') addPayment(); })
+      );
+
     }
 
     async function init(){
