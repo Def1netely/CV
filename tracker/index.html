@@ -474,18 +474,25 @@
       return data;
     }
 
-    async function apiPost(action, body = {}){
-      if(!API_URL || API_URL.includes("PASTE_YOUR")) throw new Error("API_URL not set");
-      const res = await fetch(`${API_URL}?action=${encodeURIComponent(action)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+    async function apiPost(action, body){
+      const url = `${API_URL}?action=${encodeURIComponent(action)}`;
+      const res = await fetch(url, {
+         method: "POST",
+         headers: { "Content-Type": "text/plain;charset=utf-8" },
+         body: JSON.stringify(body),
       });
-      const data = await res.json();
+
+      const text = await res.text();
+      console.log("RAW RESPONSE:", text);
+
+      let data;
+      try { data = JSON.parse(text); }
+      catch(e){ throw new Error("Server did not return JSON: " + text.slice(0,200)); }
+
       if(!data.ok) throw new Error(data.error || "Request failed");
       return data;
-    }
-
+   }
+   
     async function fetchPayments(day, college){ return (await apiGet('payments', { day, college })).payments || []; }
     async function addPaymentToServer(payload){ return apiPost('add', payload); }
     async function deletePaymentFromServer(id){ return apiPost('delete', { id }); }
