@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Tracker</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <style>
+    :root{
+      --bg:#0b1220;
+      --card:#111a2e;
+      --muted:#9fb0d0;
+      --text:#e9efff;
+      --accent:#5dd6c7;
+      --danger:#ff6b6b;
+      --border:rgba(255,255,255,.08);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(93,214,199,.18), transparent 60%),
+                  radial-gradient(900px 500px at 90% 0%, rgba(132,111,255,.18), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      min-height:100vh;
+      padding: 32px 16px;
+    }
+    .wrap{max-width: 1200px; margin: 0 auto;}
+    header{
+      display:flex;
+      flex-wrap:wrap;
+      gap:16px;
+      align-items:flex-end;
+      justify-content:space-between;
+      margin-bottom: 20px;
+    }
+    h1{margin:0; font-size: 28px; letter-spacing: .2px;}
+    .subtitle{margin: 6px 0 0; color: var(--muted); font-size: 14px;}
+
+    .grid{
+      display:grid;
+      grid-template-columns: 420px 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns: 1fr;}
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .card .hd h2{
+      margin:0;
+      font-size: 15px;
+      letter-spacing:.2px;
+    }
+    .card .bd{padding: 16px;}
+
+    label{display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px;}
+    input, select{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      outline:none;
+    }
+    input::placeholder{color: rgba(233,239,255,.45)}
+    input:focus, select:focus{border-color: rgba(93,214,199,.55); box-shadow: 0 0 0 4px rgba(93,214,199,.10)}
+
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;}
+    .row.one{grid-template-columns: 1fr;}
+
+    .btns{display:flex; gap: 10px; flex-wrap:wrap;}
+    button{
+      border: 0;
+      cursor:pointer;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      letter-spacing:.15px;
+    }
+    .primary{background: var(--accent); color: #07221f;}
+    .ghost{background: rgba(255,255,255,.08); color: var(--text); border: 1px solid rgba(255,255,255,.12)}
+    .danger{background: rgba(255,107,107,.15); color: #ffd7d7; border: 1px solid rgba(255,107,107,.28)}
+
+    .mini{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+      line-height:1.35;
+    }
+
+    table{width:100%; border-collapse: collapse;}
+    th, td{padding: 10px 10px; border-bottom: 1px solid rgba(255,255,255,.08); text-align:left; font-size: 13px;}
+    th{color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing:.2px;}
+    .mono{font-family: var(--mono);}
+
+    .toolbar{
+      display:flex;
+      gap: 10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .search{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .search input{width: 320px; max-width: 100%;}
+
+    .pill{font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.18); color: var(--muted)}
+
+    .toast{
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(17,26,46,.9);
+      box-shadow: var(--shadow);
+      max-width: 340px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: .18s ease;
+      pointer-events:none;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .toast.show{opacity:1; transform: translateY(0);}
+    .toast b{color: var(--accent);}
+
+    .hint{color: var(--muted); font-size: 12px; margin: 8px 0 0;}
+
+    details{border-top: 1px solid rgba(255,255,255,.08); margin-top: 12px; padding-top: 12px;}
+    summary{cursor:pointer; color: var(--muted); font-size: 12px;}
+
+    .diffBadge{
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+    .diffBadge.neutral{ color: var(--muted); }
+    .diffBadge.good{
+      border-color: rgba(93,214,199,.35);
+      background: rgba(93,214,199,.12);
+      color: var(--accent);
+    }
+    .diffBadge.bad{
+      border-color: rgba(255,107,107,.35);
+      background: rgba(255,107,107,.12);
+      color: #ffd7d7;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1 id="trackerTitle">Payment Tracker</h1>
+        <p class="subtitle">Log student payments locally (no server). Data is saved in your browser.</p>
+      </div>
+
+      <!-- ✅ Mini Summary Pills -->
+      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+        <div class="pill" id="countPill">0 payments</div>
+        <div class="pill" id="studentPill">0 students paid</div>
+        <div class="pill" id="amountPill">Total: ₱0</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: FORM + CONFIG -->
+      <section class="card">
+        <div class="hd">
+          <h2>New Payment</h2>
+          <div class="btns">
+            <button class="ghost" id="resetFormBtn" type="button">Reset</button>
+            <button class="primary" id="addBtn" type="button">Add Payment</button>
+          </div>
+        </div>
+        <div class="bd">
+
+          <!-- ✅ Receipt Range (Auto Receipt ID) -->
+          <div class="card" style="box-shadow:none; background: rgba(0,0,0,.12); border-radius: 14px; margin-bottom: 12px;">
+            <div class="bd" style="padding: 14px;">
+              <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                <div style="font-size: 13px; font-weight:800;">Receipt Range</div>
+                <button class="ghost" id="setRangeBtn" type="button">Set / Change</button>
+              </div>
+
+              <div class="row" style="margin-top: 10px;">
+                <div>
+                  <label for="receiptStart">Receipt Start</label>
+                  <input id="receiptStart" inputmode="numeric" placeholder="e.g., 1" />
+                </div>
+                <div>
+                  <label for="receiptEnd">Receipt End</label>
+                  <input id="receiptEnd" inputmode="numeric" placeholder="e.g., 50" />
+                </div>
+              </div>
+
+              <div class="row one" style="margin-bottom:0;">
+                <div>
+                  <label>Next Receipt ID</label>
+                  <input id="receiptId" class="mono" disabled />
+                  <div class="hint" id="rangeHint">Set a range to start auto-numbering.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- ✅ Student Name moved to where Student ID was -->
+          <div class="row one">
+            <div>
+              <input id="studentName"
+                    placeholder="e.g., Juan Dela Cruz"
+                    autocomplete="name"
+                    autocapitalize="words"
+                    spellcheck="false" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label for="yearLevel">Year Level</label>
+              <select id="yearLevel"></select>
+            </div>
+            <div>
+              <label for="college">College</label>
+              <select id="college"></select>
+            </div>
+          </div>
+
+          <div class="row one">
+            <div>
+              <label for="course">Course</label>
+              <select id="course"></select>
+              <div class="hint">Tip: Use the configuration below to edit dropdown options.</div>
+            </div>
+          </div>
+          <!-- ✅ Cash Reconciliation Mini Summary -->
+          <div class="card" style="box-shadow:none; background: rgba(0,0,0,.12); border-radius: 14px; margin-top: 12px;">
+            <div class="bd" style="padding: 14px;">
+              <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                <div style="font-size: 13px; font-weight:800;">Collection Check</div>
+                <button class="ghost" id="resetCashBtn" type="button">Reset cash</button>
+              </div>
+
+              <div class="mini" style="margin-top:6px;">
+                Expected amount is based on <b>unique paid students</b> × <b>₱${FIXED_AMOUNT}</b>. Enter the actual cash you counted.
+              </div>
+
+              <div class="row" style="margin-top: 10px;">
+                <div>
+                  <label for="actualCash">Actual Cash Collected (₱)</label>
+                  <input id="actualCash" inputmode="decimal" placeholder="e.g., 1200" />
+                  <div class="hint">You can type numbers with commas (e.g., 1,200).</div>
+                </div>
+                <div>
+                  <label>Expected From Tracker (₱)</label>
+                  <input id="expectedCash" disabled />
+                  <div class="hint">Auto-calculated from tracker records.</div>
+                </div>
+              </div>
+
+              <div class="row" style="margin-bottom:0;">
+                <div>
+                  <label>Difference</label>
+                  <div id="diffBadge" class="diffBadge neutral">—</div>
+                  <div class="mini" id="diffNote" style="margin-top:8px;">Enter actual cash to see surplus/deficit.</div>
+                </div>
+                <div>
+                  <label>Quick Stats</label>
+                  <div class="mini" style="margin-top:0;">
+                    Unique paid students: <b id="paidStudentsMini">0</b><br/>
+                    Expected total: <b id="expectedMini">₱0</b>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <details>
+            <summary>Configure dropdown options (Year Level / College / Course)</summary>
+            <div style="margin-top: 12px;">
+
+              <div class="card" style="box-shadow:none; background: rgba(0,0,0,.12); border-radius: 14px;">
+                <div class="bd" style="padding: 14px;">
+                  <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                    <div style="font-size: 13px; font-weight:700;">Year Levels</div>
+                    <button class="ghost" id="resetYearsBtn" type="button">Reset defaults</button>
+                  </div>
+                  <div class="mini">Enter one option per line.</div>
+                  <textarea id="yearOptions" rows="6" style="width:100%; margin-top:10px; padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.18); color:var(--text); font-family: var(--mono);"></textarea>
+                  <div class="btns" style="margin-top:10px;">
+                    <button class="primary" id="saveYearsBtn" type="button">Save Year Levels</button>
+                  </div>
+                </div>
+              </div>
+
+              <div style="height: 12px"></div>
+
+              <div class="card" style="box-shadow:none; background: rgba(0,0,0,.12); border-radius: 14px;">
+                <div class="bd" style="padding: 14px;">
+                  <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                    <div style="font-size: 13px; font-weight:700;">Colleges (Locked by Tracker Config)</div>
+                    <button class="ghost" id="resetCollegesBtn" type="button">Reset defaults</button>
+                  </div>
+                  <div class="mini">This list is still used for filters, but the tracker college is locked.</div>
+                  <textarea id="collegeOptions" rows="6" style="width:100%; margin-top:10px; padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.18); color:var(--text); font-family: var(--mono);"></textarea>
+                  <div class="btns" style="margin-top:10px;">
+                    <button class="primary" id="saveCollegesBtn" type="button">Save Colleges</button>
+                  </div>
+                </div>
+              </div>
+
+              <div style="height: 12px"></div>
+
+              <div class="card" style="box-shadow:none; background: rgba(0,0,0,.12); border-radius: 14px;">
+                <div class="bd" style="padding: 14px;">
+                  <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                    <div style="font-size: 13px; font-weight:700;">Courses (Grouped by College)</div>
+                    <button class="ghost" id="resetCoursesBtn" type="button">Reset defaults</button>
+                  </div>
+                  <div class="mini">
+                    Block format: first line is the <b>College key</b>, next lines are courses. Separate blocks with a blank line.
+                    Include a <b>_default</b> block for fallback.
+                  </div>
+                  <textarea id="courseOptions" rows="10" style="width:100%; margin-top:10px; padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.18); color:var(--text); font-family: var(--mono);"></textarea>
+                  <div class="btns" style="margin-top:10px;">
+                    <button class="primary" id="saveCoursesBtn" type="button">Save Courses</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </details>
+
+          <details>
+            <summary>Backup / Export</summary>
+            <div style="margin-top: 12px;" class="btns">
+              <button class="ghost" id="exportBtn" type="button">Export JSON</button>
+              <button class="ghost" id="exportCsvBtn" type="button">Export CSV</button>
+              <button class="ghost" id="exportPdfBtn" type="button">Export PDF</button>
+              <button class="ghost" id="exportXlsxBtn" type="button">Export Excel</button>
+              <label class="ghost" style="display:inline-flex; align-items:center; gap:10px; cursor:pointer; padding:10px 12px; border-radius:12px;">
+                Import JSON
+                <input id="importFile" type="file" accept="application/json" style="display:none" />
+              </label>
+              <button class="danger" id="wipeBtn" type="button">Wipe All Data</button>
+            </div>
+            <p class="mini">Exports download your data. Import replaces current data with the file contents.</p>
+          </details>
+
+        </div>
+      </section>
+
+      <!-- RIGHT: TABLE -->
+      <section class="card">
+        <div class="toolbar">
+          <div class="search">
+            <div>
+              <label for="q">Search</label>
+              <input id="q" placeholder="Search receipt, student name, year, course…" />
+            </div>
+            <div>
+              <label for="filterYear">Year Level</label>
+              <select id="filterYear"></select>
+            </div>
+            <div>
+              <label for="filterCollege">College</label>
+              <select id="filterCollege"></select>
+            </div>
+          </div>
+          <div class="btns">
+            <button class="ghost" id="clearFiltersBtn" type="button">Clear Filters</button>
+          </div>
+        </div>
+        <div class="bd" style="padding:0;">
+          <div style="overflow:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Receipt ID</th>
+                  <th>Student Name</th>
+                  <th>Year</th>
+                  <th>College</th>
+                  <th>Course</th>
+                  <th style="width: 90px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- PDF & Excel libraries (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.3/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    // ======= TRACKER CONFIG (CHANGE THIS) =======
+    const TRACKER_COLLEGE = "CFAS"; // e.g., CNSM, COE, CBAA
+    const TRACKER_DAY = "3";        // "1" to "5"
+
+    // ✅ Fixed amount per paid student
+    const FIXED_AMOUNT = 60;
+
+    // ======= Storage Keys (separated per Day+College) =======
+    const KEY_PAYMENTS = `pt_payments_${TRACKER_DAY}_${TRACKER_COLLEGE}_v1`;
+    const KEY_OPTS = `pt_options_${TRACKER_COLLEGE}_v1`;
+
+    // ✅ Cash reconciliation storage (per Day+College)
+    const KEY_CASH = `pt_cash_${TRACKER_DAY}_${TRACKER_COLLEGE}_v1`;
+
+    // ✅ Receipt range storage (per Day+College)
+    const KEY_RECEIPT_RANGE = `pt_receipt_range_${TRACKER_DAY}_${TRACKER_COLLEGE}_v1`;
+
+    function loadReceiptRange(){
+      try{
+        const raw = localStorage.getItem(KEY_RECEIPT_RANGE);
+        if(!raw) return null;
+        const obj = JSON.parse(raw);
+        if(!obj) return null;
+        const start = Number(obj.start);
+        const end = Number(obj.end);
+        const next = Number(obj.next);
+        if(!Number.isInteger(start) || !Number.isInteger(end) || !Number.isInteger(next)) return null;
+        return { start, end, next };
+      }catch(e){
+        return null;
+      }
+    }
+
+    function saveReceiptRange(range){
+      localStorage.setItem(KEY_RECEIPT_RANGE, JSON.stringify(range));
+    }
+
+    function clearReceiptRange(){
+      localStorage.removeItem(KEY_RECEIPT_RANGE);
+    }
+
+    // Strict integer parse for range fields
+    function parseIntStrict(v){
+      const s = String(v ?? "").trim().replace(/[,\s]/g, "");
+      if(!s) return null;
+      if(!/^\d+$/.test(s)) return null;
+      const n = Number(s);
+      return Number.isSafeInteger(n) ? n : null;
+    }
+
+    function setReceiptUI(range){
+      const rid = $("receiptId");
+      const hint = $("rangeHint");
+      if(!rid || !hint) return;
+
+      if(!range){
+        rid.value = "";
+        hint.textContent = "Set a range to start auto-numbering.";
+        return;
+      }
+
+      rid.value = String(range.next);
+      hint.textContent = `Using range ${range.start} → ${range.end}`;
+    }
+
+    function ensureReceiptRangeOrPrompt(){
+      let range = loadReceiptRange();
+
+      // If missing or invalid, force user to set it
+      if(!range){
+        toast("Set a <b>Receipt Start</b> and <b>Receipt End</b> first.");
+        $("receiptStart")?.focus();
+        return null;
+      }
+
+      // If already exhausted, force new range
+      if(range.next > range.end){
+        toast("Receipt range is finished. Please set a <b>new range</b>.");
+        // Clear so it must be re-set
+        clearReceiptRange();
+        setReceiptUI(null);
+        $("receiptStart")?.focus();
+        return null;
+      }
+
+      // Keep UI synced
+      setReceiptUI(range);
+      return range;
+    }
+
+    function commitRangeFromInputs(){
+      const s = parseIntStrict($("receiptStart")?.value);
+      const e = parseIntStrict($("receiptEnd")?.value);
+
+      if(s === null || e === null){
+        toast("Receipt range must be <b>numbers only</b>.");
+        return null;
+      }
+      if(e < s){
+        toast("<b>Receipt End</b> must be greater than or equal to <b>Receipt Start</b>.");
+        return null;
+      }
+
+      // Optional: avoid starting in the past if already used receipts exist
+      const payments = loadPayments();
+      const usedNums = payments
+        .map(p => parseIntStrict(p.receiptId))
+        .filter(n => n !== null);
+
+      const maxUsed = usedNums.length ? Math.max(...usedNums) : null;
+
+      let next = s;
+      if(maxUsed !== null && next <= maxUsed){
+        next = maxUsed + 1;
+        // If that exceeds end, range is unusable
+        if(next > e){
+          toast(`All numbers in this range are already used. Choose a higher range.`);
+          return null;
+        }
+      }
+
+      const range = { start: s, end: e, next };
+      saveReceiptRange(range);
+      setReceiptUI(range);
+      toast("Receipt range saved ✅");
+      return range;
+    }
+
+
+    function loadActualCash(){
+      try{
+        const raw = localStorage.getItem(KEY_CASH);
+        if(!raw) return "";
+        const obj = JSON.parse(raw);
+        return (obj && typeof obj.value === "string") ? obj.value : "";
+      }catch(e){
+        return "";
+      }
+    }
+
+    function saveActualCash(rawValue){
+      localStorage.setItem(KEY_CASH, JSON.stringify({ value: String(rawValue ?? "") }));
+    }
+
+    function parseMoneyInput(str){
+      // Allows: "1,200", "1200.50", "₱1200"
+      const s = String(str || "").replace(/[₱,\s]/g, "");
+      if(!s) return null;
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function peso(n){
+      const num = Number(n || 0);
+      return "₱" + num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function sanitizeReceiptId(v){
+      // Allow numbers + common symbols only (no letters)
+      // Allowed: 0-9 and these symbols: - _ / # . ( ) [ ] { } : + @ & space
+      return String(v || "").replace(/[^0-9\-_\/#\.\(\)\[\]\{\}:+@&\s]/g, "");
+    }
+
+    function sanitizeStudentName(v){
+      // Letters + spaces + common name punctuation
+      // Allows: letters (incl. ñ), spaces, apostrophe, dot, dash
+      return String(v || "").replace(/[^A-Za-zÀ-ÖØ-öø-ÿÑñ'\.\-\s]/g, "");
+    }
+
+
+
+    // ======= Default dropdown options =======
+    const defaultOptions = {
+      years: ["1st Year", "2nd Year", "3rd Year", "4th Year", "Irregular"],
+      colleges: ["CNSM", "COE", "CBAA", "CFAS", "COEd", "COA", "IIAIS", "CSSH", "CON"],
+      courseMap: {
+        CNSM: ["BSIT", "BSPhysics", "BSMath", "BSBio", "BSChem"],
+        COE: ["BS CE", "BS ELECTRICAL ENG", "BS ELECTRONICS ENG", "BS ENG TECH", "BS ME", "DIP AT", "DIP BCT", "DIP ET", "DIP MST"],
+        CBAA: ["BS ACC", "BS ECON", "BSBA BE", "BSBA HRM", "BSBA MM"],
+        CFAS: ["BS F", "MS MB", "BS AQC", "BS FP", "DIP AQC", "DIP FISH PRO"],
+        COEd: ["BSED BIO", "BSED ENG", "BSED FIL", "BSED MATH", "BPED", "BEED"],
+        COA: ["BS ABM", "BS ABE", "BSA ANSCI", "BSA AGRON", "DIP ANSCI", "DIP AGRON"],
+        IIAIS: ["BA IS", "BA IS Maj. in Shariah"],
+        CSSH: ["BA ELS", "BA LCS", "AB FIL", "AB POLSCI", "AB HIST", "AB SOCIOL", "AB PSYCH"],
+        CON: ["BSN"],
+      }
+    };
+
+    // ======= Helpers =======
+    const $ = (id) => document.getElementById(id);
+    const nowISO = () => new Date().toISOString();
+    const prettyDate = (iso) => {
+      const d = new Date(iso);
+      return d.toLocaleString(undefined, { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    };
+    const csvEscape = (v) => {
+      const s = String(v ?? "");
+      if (/[\n\r\",]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    };
+
+    function toast(msg){
+      const t = $("toast");
+      t.innerHTML = msg;
+      t.classList.add("show");
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+    }
+
+    function loadOptions(){
+      try{
+        const raw = localStorage.getItem(KEY_OPTS);
+        if(!raw) return structuredClone(defaultOptions);
+        const parsed = JSON.parse(raw);
+        return {
+          years: Array.isArray(parsed.years) && parsed.years.length ? parsed.years : defaultOptions.years,
+          colleges: Array.isArray(parsed.colleges) && parsed.colleges.length ? parsed.colleges : defaultOptions.colleges,
+          courseMap: (parsed.courseMap && typeof parsed.courseMap === "object") ? parsed.courseMap : structuredClone(defaultOptions.courseMap),
+        };
+      } catch(e){
+        return structuredClone(defaultOptions);
+      }
+    }
+
+    function saveOptions(opts){
+      localStorage.setItem(KEY_OPTS, JSON.stringify(opts));
+    }
+
+    function getCoursesForCollege(opts, college){
+      const list = opts.courseMap && opts.courseMap[college];
+      if(Array.isArray(list) && list.length) return list;
+      return (opts.courseMap && opts.courseMap._default) ? opts.courseMap._default : [];
+    }
+
+    function loadPayments(){
+      try{
+        const raw = localStorage.getItem(KEY_PAYMENTS);
+        if(!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch(e){
+        return [];
+      }
+    }
+
+    function savePayments(list){
+      localStorage.setItem(KEY_PAYMENTS, JSON.stringify(list));
+    }
+
+    function setSelectOptions(select, options, {includeAll=false, allLabel="All"} = {}){
+      select.innerHTML = "";
+      if(includeAll){
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = allLabel;
+        select.appendChild(opt);
+      }
+      for(const o of options){
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = o;
+        select.appendChild(opt);
+      }
+    }
+
+    function textAreaToList(text){
+      return text
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function listToTextArea(list){
+      return (list || []).join("\n");
+    }
+
+    function courseMapToTextArea(courseMap){
+      const blocks = [];
+      const keys = Object.keys(courseMap || {});
+      const ordered = keys.filter(k=>k !== "_default").sort().concat(keys.includes("_default") ? ["_default"] : []);
+      for(const key of ordered){
+        const lines = [key].concat(courseMap[key] || []);
+        blocks.push(lines.join("\n"));
+      }
+      return blocks.join("\n\n");
+    }
+
+    function textAreaToCourseMap(text){
+      const blocks = String(text||"").trim().split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+      const map = {};
+      for(const b of blocks){
+        const lines = b.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+        if(!lines.length) continue;
+        const key = lines[0];
+        map[key] = lines.slice(1);
+      }
+      if(!Array.isArray(map._default) || !map._default.length){
+        map._default = structuredClone(defaultOptions.courseMap._default);
+      }
+      return map;
+    }
+
+    function validateForm(){
+      // ✅ Ensure receipt range exists and get current "next"
+      const range = ensureReceiptRangeOrPrompt();
+      if(!range) return { ok:false, msg:"Please set a <b>Receipt Start</b> and <b>Receipt End</b>." };
+
+      const receiptId = String(range.next); // auto receipt
+      const studentName = sanitizeStudentName($("studentName").value).trim();
+
+      $("studentName").value = studentName;
+      $("receiptId").value = receiptId; // show next in UI
+
+      const year = $("yearLevel").value;
+      const course = $("course").value;
+
+      if(!studentName) return { ok:false, msg:"Please enter a <b>Student Name</b>." };
+      if(!year) return { ok:false, msg:"Please select a <b>Year Level</b>." };
+      if(!course) return { ok:false, msg:"Please select a <b>Course</b>." };
+
+      return { ok:true, data:{ receiptId, studentName, year, college: TRACKER_COLLEGE, course, day: TRACKER_DAY } };
+    }
+
+
+    function render(){
+      const payments = loadPayments();
+      const q = $("q").value.trim().toLowerCase();
+      const fy = $("filterYear").value;
+
+      // ✅ Mini Summary (now uses studentName as unique key)
+      const uniqueStudents = new Set(
+        payments.map(p => String(p.studentName || "").trim().toLowerCase()).filter(Boolean)
+      );
+      const paidStudentsCount = uniqueStudents.size;
+      const totalPaid = paidStudentsCount * FIXED_AMOUNT;
+
+      $("countPill").textContent = `${payments.length} payment${payments.length===1?"":"s"}`;
+      $("studentPill").textContent = `${paidStudentsCount} student${paidStudentsCount===1?"":"s"} paid`;
+      $("amountPill").textContent = `Total: ₱${totalPaid.toLocaleString()}`;
+
+      // ✅ Update Cash Reconciliation UI
+      updateCashReconciliation(paidStudentsCount, totalPaid);
+
+
+      let filtered = payments;
+      if(q){
+        filtered = filtered.filter(p =>
+          (p.receiptId||"").toLowerCase().includes(q) ||
+          (p.studentName||"").toLowerCase().includes(q) ||
+          (p.year||"").toLowerCase().includes(q) ||
+          (p.college||"").toLowerCase().includes(q) ||
+          (p.course||"").toLowerCase().includes(q)
+        );
+      }
+      if(fy) filtered = filtered.filter(p => p.year === fy);
+
+      const tbody = $("tbody");
+      tbody.innerHTML = "";
+
+      for(const p of filtered){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${prettyDate(p.createdAt)}</td>
+          <td class="mono">${p.receiptId}</td>
+          <td>${p.studentName}</td>
+          <td>${p.year}</td>
+          <td>${p.college}</td>
+          <td>${p.course}</td>
+          <td>
+            <button class="danger" data-del="${p.id}" title="Delete">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      tbody.querySelectorAll("button[data-del]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-del");
+          deletePayment(id);
+        });
+      });
+    }
+
+    function updateCashReconciliation(paidStudentsCount, expectedTotal){
+      const expectedInput = $("expectedCash");
+      const actualInput = $("actualCash");
+      const diffBadge = $("diffBadge");
+      const diffNote = $("diffNote");
+
+      // Guard: if the section isn't present, skip
+      if(!expectedInput || !actualInput || !diffBadge || !diffNote) return;
+
+      expectedInput.value = peso(expectedTotal);
+      $("paidStudentsMini").textContent = String(paidStudentsCount);
+      $("expectedMini").textContent = peso(expectedTotal);
+
+      const actualNum = parseMoneyInput(actualInput.value);
+      if(actualNum === null){
+        diffBadge.className = "diffBadge neutral";
+        diffBadge.textContent = "—";
+        diffNote.textContent = "Enter actual cash to see surplus/deficit.";
+        return;
+      }
+
+      const diff = actualNum - expectedTotal;
+
+      if(Math.abs(diff) < 0.005){
+        diffBadge.className = "diffBadge good";
+        diffBadge.textContent = "Balanced (₱0.00)";
+        diffNote.innerHTML = "✅ Cash matches the tracker total.";
+        return;
+      }
+
+      if(diff > 0){
+        diffBadge.className = "diffBadge good";
+        diffBadge.textContent = `Surplus ${peso(diff)}`;
+        diffNote.innerHTML = `✅ You have <b>extra</b> cash compared to expected.`;
+      } else {
+        diffBadge.className = "diffBadge bad";
+        diffBadge.textContent = `Deficit ${peso(Math.abs(diff))}`;
+        diffNote.innerHTML = `⚠️ You are <b>short</b> compared to expected.`;
+      }
+    }
+
+
+    function addPayment(){
+      const v = validateForm();
+      if(!v.ok){ toast(v.msg); return; }
+
+      const payments = loadPayments();
+      const receipt = v.data.receiptId;
+      const exists = payments.some(p => (p.receiptId||"").toLowerCase() === receipt.toLowerCase());
+      if(exists){
+        toast("Receipt ID already exists. If this is correct, edit the ID first.");
+        return;
+      }
+
+      payments.unshift({
+        id: crypto.randomUUID(),
+        ...v.data,
+        createdAt: nowISO(),
+      });
+
+      savePayments(payments);
+
+    const range = loadReceiptRange();
+    if(range){
+      range.next = Number(range.next) + 1;
+      saveReceiptRange(range);
+      setReceiptUI(range);
+
+      if(range.next > range.end){
+        toast("Last receipt used. Please set a <b>new range</b>.");
+      }
+    }
+
+      render();
+      resetForm();
+      toast("Payment added ✅");
+    }
+
+    // ✅ Increment receipt number for next entry
+
+
+    function deletePayment(id){
+      const payments = loadPayments();
+      const next = payments.filter(p => p.id !== id);
+      savePayments(next);
+      render();
+      toast("Payment deleted");
+    }
+
+    function resetForm(){
+      $("studentName").value = "";
+      $("studentName").focus();
+
+      // keep receiptId showing the current next value
+      const range = loadReceiptRange();
+      setReceiptUI(range);
+    }
+
+
+    function syncOptionEditors(opts){
+      $("yearOptions").value = listToTextArea(opts.years);
+      $("collegeOptions").value = listToTextArea(opts.colleges);
+      $("courseOptions").value = courseMapToTextArea(opts.courseMap);
+    }
+
+    function applyOptions(opts){
+      setSelectOptions($("yearLevel"), opts.years);
+
+      setSelectOptions($("college"), [TRACKER_COLLEGE]);
+      $("college").value = TRACKER_COLLEGE;
+      $("college").disabled = true;
+
+      setSelectOptions($("course"), getCoursesForCollege(opts, TRACKER_COLLEGE));
+
+      setSelectOptions($("filterYear"), opts.years, {includeAll:true, allLabel:"All"});
+      setSelectOptions($("filterCollege"), [TRACKER_COLLEGE], {includeAll:true, allLabel:"All"});
+    }
+
+    function saveYearsFromEditor(){
+      const opts = loadOptions();
+      const list = textAreaToList($("yearOptions").value);
+      if(!list.length){ toast("Year Levels cannot be empty."); return; }
+      opts.years = list;
+      saveOptions(opts);
+      applyOptions(opts);
+      toast("Year Levels saved");
+    }
+
+    function saveCollegesFromEditor(){
+      const opts = loadOptions();
+      const list = textAreaToList($("collegeOptions").value);
+      if(!list.length){ toast("Colleges cannot be empty."); return; }
+      opts.colleges = list;
+      saveOptions(opts);
+      applyOptions(opts);
+      toast("Colleges saved");
+    }
+
+    function saveCoursesFromEditor(){
+      const opts = loadOptions();
+      const map = textAreaToCourseMap($("courseOptions").value);
+      opts.courseMap = map;
+      saveOptions(opts);
+      applyOptions(opts);
+      toast("Courses saved (grouped by college)");
+    }
+
+    function resetYears(){
+      const opts = loadOptions();
+      opts.years = structuredClone(defaultOptions.years);
+      saveOptions(opts);
+      syncOptionEditors(opts);
+      applyOptions(opts);
+      toast("Year Levels reset");
+    }
+
+    function resetColleges(){
+      const opts = loadOptions();
+      opts.colleges = structuredClone(defaultOptions.colleges);
+      saveOptions(opts);
+      syncOptionEditors(opts);
+      applyOptions(opts);
+      toast("Colleges reset");
+    }
+
+    function resetCourses(){
+      const opts = loadOptions();
+      opts.courseMap = structuredClone(defaultOptions.courseMap);
+      saveOptions(opts);
+      syncOptionEditors(opts);
+      applyOptions(opts);
+      toast("Courses reset");
+    }
+
+    function exportJSON(){
+      const payload = {
+        exportedAt: nowISO(),
+        options: loadOptions(),
+        payments: loadPayments(),
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `DAY${TRACKER_DAY}_${TRACKER_COLLEGE}_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("Exported JSON");
+    }
+
+    function exportCSV(){
+      const payments = loadPayments();
+      const header = ["createdAt","day","receiptId","studentName","year","college","course"].join(",");
+      const rows = payments.map(p => [
+        p.createdAt,
+        p.day || TRACKER_DAY,
+        p.receiptId,
+        p.studentName,
+        p.year,
+        p.college || TRACKER_COLLEGE,
+        p.course
+      ].map(csvEscape).join(","));
+      const csv = [header, ...rows].join("\n");
+      const blob = new Blob([csv], {type: "text/csv"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `DAY${TRACKER_DAY}_${TRACKER_COLLEGE}_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("Exported CSV");
+    }
+
+    function exportPDF(){
+      const payments = loadPayments();
+      const { jsPDF } = window.jspdf || {};
+      if(!jsPDF){
+        toast("PDF library failed to load. Please check your internet connection.");
+        return;
+      }
+
+      const doc = new jsPDF({ orientation: "landscape" });
+      const title = `DAY ${TRACKER_DAY} — ${TRACKER_COLLEGE} (Payment Tracker Export)`;
+      const exportedAt = new Date().toLocaleString();
+
+      doc.setFontSize(14);
+      doc.text(title, 14, 14);
+      doc.setFontSize(10);
+      doc.text(`Exported: ${exportedAt}`, 14, 20);
+      doc.text(`Total records: ${payments.length}`, 14, 26);
+
+      const head = [["Date", "Receipt ID", "Student Name", "Year", "College", "Course"]];
+      const body = payments.map(p => [
+        prettyDate(p.createdAt),
+        p.receiptId,
+        p.studentName,
+        p.year,
+        p.college || TRACKER_COLLEGE,
+        p.course
+      ]);
+
+      doc.autoTable({
+        startY: 32,
+        head,
+        body,
+        styles: { fontSize: 8 },
+        headStyles: { fontStyle: "bold" },
+        theme: "grid",
+        margin: { left: 14, right: 14 }
+      });
+
+      doc.save(`DAY${TRACKER_DAY}_${TRACKER_COLLEGE}_${new Date().toISOString().slice(0,10)}.pdf`);
+      toast("Exported PDF");
+    }
+
+    function exportExcel(){
+      const payments = loadPayments();
+      if(!window.XLSX){
+        toast("Excel library failed to load. Please check your internet connection.");
+        return;
+      }
+
+      const rows = payments.map(p => ({
+        Date: prettyDate(p.createdAt),
+        Day: p.day || TRACKER_DAY,
+        "Receipt ID": p.receiptId,
+        "Student Name": p.studentName,
+        Year: p.year,
+        College: p.college || TRACKER_COLLEGE,
+        Course: p.course
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Payments");
+      XLSX.writeFile(wb, `DAY${TRACKER_DAY}_${TRACKER_COLLEGE}_${new Date().toISOString().slice(0,10)}.xlsx`);
+      toast("Exported Excel");
+    }
+
+    function importJSON(file){
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const payload = JSON.parse(reader.result);
+          if(!payload || typeof payload !== 'object') throw new Error("Invalid format");
+
+          if(payload.options){
+            const opts = {
+              years: Array.isArray(payload.options.years) ? payload.options.years : defaultOptions.years,
+              colleges: Array.isArray(payload.options.colleges) ? payload.options.colleges : defaultOptions.colleges,
+              courseMap: (payload.options.courseMap && typeof payload.options.courseMap === "object") ? payload.options.courseMap : structuredClone(defaultOptions.courseMap),
+            };
+            saveOptions(opts);
+            syncOptionEditors(opts);
+            applyOptions(opts);
+          }
+
+          if(Array.isArray(payload.payments)){
+            const filtered = payload.payments.filter(p =>
+              String(p.day || TRACKER_DAY) === String(TRACKER_DAY) &&
+              String(p.college || TRACKER_COLLEGE).toUpperCase() === String(TRACKER_COLLEGE).toUpperCase()
+            );
+
+            // ✅ Remove old studentId safely if present
+            const cleaned = filtered.map(p => {
+              const copy = {...p};
+              delete copy.studentId;
+              return copy;
+            });
+
+            savePayments(cleaned);
+          }
+
+          render();
+          toast("Imported successfully ✅");
+        }catch(e){
+          toast("Import failed. Please choose a valid export JSON.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function wipeAll(){
+      const ok = confirm("This will delete ALL saved payments and dropdown options from this browser for this tracker. Continue?");
+      if(!ok) return;
+      localStorage.removeItem(KEY_PAYMENTS);
+      localStorage.removeItem(KEY_OPTS);
+      const opts = loadOptions();
+      syncOptionEditors(opts);
+      applyOptions(opts);
+      render();
+      toast("All data wiped");
+    }
+
+    function init(){
+      const opts = loadOptions();
+      applyOptions(opts);
+      syncOptionEditors(opts);
+
+      $("trackerTitle").textContent = `DAY ${TRACKER_DAY} — ${TRACKER_COLLEGE}`;
+      document.title = `DAY ${TRACKER_DAY} — ${TRACKER_COLLEGE} | Payment Tracker`;
+
+      render();
+
+      $("addBtn").addEventListener("click", addPayment);
+      $("resetFormBtn").addEventListener("click", resetForm);
+      $("q").addEventListener("input", render);
+      $("filterYear").addEventListener("change", render);
+      $("filterCollege").addEventListener("change", render);
+
+      $("clearFiltersBtn").addEventListener("click", () => {
+        $("q").value = "";
+        $("filterYear").value = "";
+        $("filterCollege").value = "";
+        render();
+      });
+
+      $("saveYearsBtn").addEventListener("click", saveYearsFromEditor);
+      $("saveCollegesBtn").addEventListener("click", saveCollegesFromEditor);
+      $("saveCoursesBtn").addEventListener("click", saveCoursesFromEditor);
+
+      $("resetYearsBtn").addEventListener("click", resetYears);
+      $("resetCollegesBtn").addEventListener("click", resetColleges);
+      $("resetCoursesBtn").addEventListener("click", resetCourses);
+
+      $("exportBtn").addEventListener("click", exportJSON);
+      $("exportCsvBtn").addEventListener("click", exportCSV);
+      $("exportPdfBtn").addEventListener("click", exportPDF);
+      $("exportXlsxBtn").addEventListener("click", exportExcel);
+
+      $("importFile").addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if(file) importJSON(file);
+        e.target.value = "";
+      });
+
+      $("wipeBtn").addEventListener("click", wipeAll);
+
+      $("studentName").addEventListener("input", (e) => {
+        const cleaned = sanitizeStudentName(e.target.value);
+        if(e.target.value !== cleaned) e.target.value = cleaned;
+      });
+
+
+      // ✅ Enter key binding (no studentId now)
+      [$("receiptId"), $("studentName")].forEach(el => {
+        el.addEventListener("keydown", (e) => {
+          if(e.key === "Enter") addPayment();
+        });
+      });
+    }
+    
+    // ✅ Load any saved range on startup and sync UI
+    setReceiptUI(loadReceiptRange());
+
+    // ✅ Save range when clicking Set/Change
+    $("setRangeBtn")?.addEventListener("click", () => {
+      commitRangeFromInputs();
+    });
+
+    // ✅ Optional: auto-save range when leaving the end field
+    $("receiptEnd")?.addEventListener("keydown", (e) => {
+      if(e.key === "Enter") commitRangeFromInputs();
+    });
+
+
+    // ✅ Load saved actual cash and wire up listeners
+    const savedCash = loadActualCash();
+    if($("actualCash")) $("actualCash").value = savedCash;
+
+    if($("actualCash")){
+      $("actualCash").addEventListener("input", (e) => {
+        saveActualCash(e.target.value);
+        // re-run reconciliation using current computed totals
+        const payments = loadPayments();
+        const uniqueStudents = new Set(payments.map(p => String(p.studentName||"").trim().toLowerCase()).filter(Boolean));
+        const expected = uniqueStudents.size * FIXED_AMOUNT;
+        updateCashReconciliation(uniqueStudents.size, expected);
+      });
+    }
+
+    if($("resetCashBtn")){
+      $("resetCashBtn").addEventListener("click", () => {
+        if(!$("actualCash")) return;
+        $("actualCash").value = "";
+        saveActualCash("");
+        const payments = loadPayments();
+        const uniqueStudents = new Set(payments.map(p => String(p.studentName||"").trim().toLowerCase()).filter(Boolean));
+        const expected = uniqueStudents.size * FIXED_AMOUNT;
+        updateCashReconciliation(uniqueStudents.size, expected);
+        toast("Cash input reset");
+      });
+    }
+
+    init();
+  </script>
+  
+</body>
+</html>
