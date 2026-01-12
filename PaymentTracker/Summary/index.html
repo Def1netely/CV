@@ -154,6 +154,25 @@
 
     .tabBody{ display:none; }
     .tabBody.active{ display:block; }
+
+    canvas{ display:block; width:100%; }
+    .chartTip{
+      position: fixed;
+      z-index: 99;
+      pointer-events:none;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(17,26,46,.95);
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.25;
+      transform: translate(10px, 10px);
+      opacity: 0;
+      transition: opacity .08s ease;
+    }
+    .chartTip.show{ opacity: 1; }
   </style>
 </head>
 <body>
@@ -193,9 +212,20 @@
       <div class="card">
         <div class="hd">
           <h2>Overall Summary</h2>
-          <div class="pill">Unique students per day × ₱60</div>
+          <div class="pill">Overall = across all uploads</div>
         </div>
         <div class="bd" id="overallSummary"></div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <h2>Overall Visual</h2>
+          <div class="pill">Pie = paid students per college</div>
+        </div>
+        <div class="bd">
+          <canvas id="overallPie" style="width:100%; height:340px;"></canvas>
+          <div class="mini" id="overallPieHint">Hover slices to see exact values.</div>
+        </div>
       </div>
     </section>
 
@@ -234,7 +264,7 @@
           <div class="mini">Select a college to upload.</div>
         </div>
 
-        <!-- ✅ Tabs Content -->
+        <!-- Tabs Content -->
         <div class="bd tabBody active" id="tabInfo"></div>
         <div class="bd tabBody" id="tabList"></div>
       </div>
@@ -242,6 +272,17 @@
       <div class="card">
         <div class="hd"><h2>Day Summary</h2><div class="pill" id="dayPill">—</div></div>
         <div class="bd" id="daySummary"></div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <h2>Day Visual</h2>
+          <div class="pill" id="dayPiePill">Pie = students per college</div>
+        </div>
+        <div class="bd">
+          <canvas id="dayPie" style="width:100%; height:340px;"></canvas>
+          <div class="mini" id="dayPieHint">Hover slices to see exact values.</div>
+        </div>
       </div>
     </section>
   </div>
@@ -324,7 +365,7 @@
     return [];
   }
 
-  // ✅ normalize: ensure every payment has an id, and use studentName (no studentId)
+  // normalize: ensure every payment has an id, and use studentName
   function normalizePayments(rawPayments, day, college){
     const out = [];
     for(const p of (rawPayments||[])){
@@ -342,7 +383,7 @@
     return out;
   }
 
-  // ✅ Unique students by normalized name
+  // Unique students by normalized name
   function uniqueStudents(payments){
     return new Set(
       payments.map(p => String(p.studentName||"").trim().toLowerCase()).filter(Boolean)
@@ -354,41 +395,297 @@
     $("dayView").style.display = which === "day" ? "" : "none";
   }
 
+  function escapeHtml(s){
+    return String(s||"")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;");
+  }
+
+  // -------------------------
+  // Aggregation helpers (unique per group)
+  // -------------------------
+  function groupUniqueCounts(payments, keyFn){
+    const map = {};
+    for(const p of payments){
+      const k = String(keyFn(p) || "(UNKNOWN)");
+      map[k] = map[k] || new Set();
+      const nm = String(p.studentName||"").trim().toLowerCase();
+      if(nm) map[k].add(nm);
+    }
+    const rows = Object.keys(map).map(k => ({
+      key: k,
+      paidStudents: map[k].size,
+      totalAmount: map[k].size * FIXED_AMOUNT
+    })).sort((a,b)=>b.paidStudents-a.paidStudents);
+    return rows;
+  }
+
+  function collectAllPaymentsForDay(uploads, day){
+    const all = [];
+    for(const col of DEFAULT_COLLEGES){
+      const key = getKey(day, col);
+      const entry = uploads[key];
+      if(entry && Array.isArray(entry.payments)) all.push(...entry.payments);
+    }
+    return all;
+  }
+
+  function collectAllPaymentsOverall(uploads){
+    const all = [];
+    for(const d of DAYS){
+      all.push(...collectAllPaymentsForDay(uploads, d));
+    }
+    return all;
+  }
+
   function computeDayTotals(uploads){
     const totals = {};
     for(const d of DAYS){
-      const allPayments = [];
-      for(const col of DEFAULT_COLLEGES){
-        const key = getKey(d, col);
-        const entry = uploads[key];
-        if(entry && Array.isArray(entry.payments)){
-          allPayments.push(...entry.payments);
-        }
-      }
+      const allPayments = collectAllPaymentsForDay(uploads, d);
       const u = uniqueStudents(allPayments);
       totals[d] = { paidStudents: u.size, totalAmount: u.size * FIXED_AMOUNT };
     }
     return totals;
   }
 
-  function computeOverallSummary(uploads){
-    let totalStudents = 0;
-    const byDay = computeDayTotals(uploads);
-    for(const d of DAYS) totalStudents += (byDay[d]?.paidStudents || 0);
-    return { totalStudents, totalAmount: totalStudents * FIXED_AMOUNT, byDay };
+  // -------------------------
+  // Offline Pie Chart (canvas)
+  // -------------------------
+  const PIE_PALETTE = [
+    "#5dd6c7","#846fff","#ff6b6b","#ffd166","#06d6a0",
+    "#118ab2","#ef476f","#caffbf","#9bf6ff","#bdb2ff",
+    "#ffc6ff","#a3f7bf"
+  ];
+
+  const __pieStates = {}; // by canvasId
+
+  function ensureChartTooltip(){
+    let tip = document.getElementById("chartTip");
+    if(tip) return tip;
+    tip = document.createElement("div");
+    tip.id = "chartTip";
+    tip.className = "chartTip";
+    document.body.appendChild(tip);
+    return tip;
   }
 
+  function renderPieChart(canvasId, rows, opts = {}){
+    const canvas = $(canvasId);
+    if(!canvas) return;
+
+    const tip = ensureChartTooltip();
+    const hintEl = opts.hintId ? $(opts.hintId) : null;
+
+    const data = (rows || []).filter(r => (r.paidStudents||0) > 0);
+    const total = data.reduce((a,r)=>a + (r.paidStudents||0), 0);
+
+    if(hintEl){
+      hintEl.textContent = total
+        ? "Hover slices to see exact values."
+        : "No data yet. Upload tracker JSON files to populate this chart.";
+    }
+
+    // Resize for crispness
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(280, Math.floor(rect.width));
+    const h = Math.max(240, Math.floor(rect.height || 340));
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const cx = w/2, cy = h/2;
+    const r = Math.min(w, h) * 0.38; // leave room for legend-like labels
+    const inner = Math.max(0, r * (opts.donut ? 0.55 : 0));
+
+    ctx.clearRect(0,0,w,h);
+
+    // Draw empty state ring
+    if(!total){
+      ctx.strokeStyle = "rgba(255,255,255,.12)";
+      ctx.lineWidth = 16;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(159,176,208,.9)";
+      ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+      const msg = "No data";
+      const tw = ctx.measureText(msg).width;
+      ctx.fillText(msg, cx - tw/2, cy + 4);
+      return;
+    }
+
+    // Angles
+    let start = -Math.PI/2;
+    const slices = data.map((row, i) => {
+      const frac = row.paidStudents / total;
+      const ang = frac * Math.PI*2;
+      const end = start + ang;
+      const color = PIE_PALETTE[i % PIE_PALETTE.length];
+      const s = { i, row, start, end, color };
+      start = end;
+      return s;
+    });
+
+    // Draw slices
+    for(const s of slices){
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, s.start, s.end);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(s.color, 0.55);
+      ctx.fill();
+
+      ctx.strokeStyle = hexToRgba(s.color, 0.95);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Donut hole
+    if(inner > 0){
+      ctx.beginPath();
+      ctx.arc(cx, cy, inner, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(11,18,32,.55)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.10)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Center text
+    ctx.fillStyle = "rgba(233,239,255,.9)";
+    ctx.font = "700 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+    const centerA = `${total} students`;
+    const twA = ctx.measureText(centerA).width;
+    ctx.fillText(centerA, cx - twA/2, cy - 2);
+
+    ctx.fillStyle = "rgba(159,176,208,.9)";
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+    const centerB = peso(total * FIXED_AMOUNT);
+    const twB = ctx.measureText(centerB).width;
+    ctx.fillText(centerB, cx - twB/2, cy + 16);
+
+    // Legend-ish list (top 6)
+    const top = data.slice(0, 6);
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+    let lx = 14, ly = 16;
+    for(let i=0; i<top.length; i++){
+      const row = top[i];
+      const color = PIE_PALETTE[i % PIE_PALETTE.length];
+      ctx.fillStyle = hexToRgba(color, 0.95);
+      ctx.fillRect(lx, ly - 9, 10, 10);
+      ctx.fillStyle = "rgba(233,239,255,.85)";
+      const label = `${row.key}: ${row.paidStudents}`;
+      ctx.fillText(label, lx + 16, ly);
+      ly += 18;
+    }
+
+    function hexToRgba(hex, a){
+      const h = String(hex||"").replace("#","");
+      const full = h.length === 3 ? h.split("").map(ch=>ch+ch).join("") : h;
+      const r = parseInt(full.slice(0,2),16);
+      const g = parseInt(full.slice(2,4),16);
+      const b = parseInt(full.slice(4,6),16);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+
+    function hitTest(mx,my){
+      const dx = mx - cx;
+      const dy = my - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if(dist > r || dist < inner) return null;
+
+      let ang = Math.atan2(dy, dx);
+      // normalize so -PI/2 is top
+      // ang in [-PI, PI], convert to [0, 2PI)
+      if(ang < -Math.PI/2) ang += Math.PI*2;
+      // shift so our start is -PI/2
+      // compare in shifted space:
+      const shifted = ang;
+      // Each slice start/end are in radians, also starting from -PI/2 in standard space.
+      // We'll compute slice angle in same adjusted approach:
+      for(const s of slices){
+        // map s.start/end to [0,2PI) relative to -PI/2:
+        const ss = (s.start + Math.PI/2 + Math.PI*2) % (Math.PI*2);
+        const ee = (s.end + Math.PI/2 + Math.PI*2) % (Math.PI*2);
+        const a2 = (shifted + Math.PI/2 + Math.PI*2) % (Math.PI*2);
+
+        // handle wrap-around
+        if(ss <= ee){
+          if(a2 >= ss && a2 <= ee) return s;
+        }else{
+          if(a2 >= ss || a2 <= ee) return s;
+        }
+      }
+      return null;
+    }
+
+    function onMove(e){
+      const rct = canvas.getBoundingClientRect();
+      const mx = e.clientX - rct.left;
+      const my = e.clientY - rct.top;
+      const hit = hitTest(mx,my);
+      if(!hit){
+        tip.classList.remove("show");
+        canvas.style.cursor = "default";
+        return;
+      }
+      canvas.style.cursor = "pointer";
+
+      const row = hit.row;
+      const pct = Math.round((row.paidStudents/total)*100);
+      tip.innerHTML = `
+        <div style="font-weight:900; margin-bottom:4px;">${escapeHtml(row.key)}</div>
+        <div><span class="muted">Paid students:</span> <b>${row.paidStudents}</b> (${pct}%)</div>
+        <div><span class="muted">Amount:</span> <b>${peso(row.paidStudents * FIXED_AMOUNT)}</b></div>
+      `;
+      tip.style.left = `${e.clientX}px`;
+      tip.style.top = `${e.clientY}px`;
+      tip.classList.add("show");
+    }
+
+    function onLeave(){
+      tip.classList.remove("show");
+      canvas.style.cursor = "default";
+    }
+
+    // Bind (avoid duplicate)
+    if(__pieStates[canvasId]){
+      canvas.removeEventListener("mousemove", __pieStates[canvasId].onMove);
+      canvas.removeEventListener("mouseleave", __pieStates[canvasId].onLeave);
+    }
+    canvas.addEventListener("mousemove", onMove);
+    canvas.addEventListener("mouseleave", onLeave);
+    __pieStates[canvasId] = { onMove, onLeave };
+  }
+
+  // -------------------------
+  // HOME rendering (overall tables + overall pie by college)
+  // -------------------------
   function renderHome(){
     showView("home");
     setCrumbs("");
 
     const uploads = loadUploads();
-    const overall = computeOverallSummary(uploads);
 
+    // Pills
     $("filesPill").textContent = `${Object.keys(uploads).length} trackers uploaded`;
-    $("studentsPill").textContent = `${overall.totalStudents} students`;
-    $("totalPill").textContent = `Total: ${peso(overall.totalAmount)}`;
 
+    // Day cards based on day totals (unique per day, across uploaded colleges)
+    const byDay = computeDayTotals(uploads);
+
+    const totalStudentsAllDays = DAYS.reduce((acc, d)=> acc + (byDay[d]?.paidStudents || 0), 0);
+    const totalAmountAllDays = totalStudentsAllDays * FIXED_AMOUNT;
+
+    $("studentsPill").textContent = `${totalStudentsAllDays} students`;
+    $("totalPill").textContent = `Total: ${peso(totalAmountAllDays)}`;
+
+    // Day tiles
     const dayCards = $("dayCards");
     dayCards.innerHTML = "";
     for(const d of DAYS){
@@ -396,14 +693,48 @@
       tile.className = "tile";
       tile.innerHTML = `
         <div class="k">DAY ${d}</div>
-        <div class="v">${peso(overall.byDay[d].totalAmount)}</div>
-        <div class="s">${overall.byDay[d].paidStudents} unique students</div>
+        <div class="v">${peso(byDay[d].totalAmount)}</div>
+        <div class="s">${byDay[d].paidStudents} unique students</div>
       `;
       tile.addEventListener("click", ()=> goDay(d));
       dayCards.appendChild(tile);
     }
 
+    // Overall payments across ALL days
+    const overallPayments = collectAllPaymentsOverall(uploads);
+    const overallUnique = uniqueStudents(overallPayments);
+    const overallTotalStudents = overallUnique.size;
+    const overallTotalAmount = overallTotalStudents * FIXED_AMOUNT;
+
+    // Overall by college + by year (unique per group)
+    const overallCollegeRows = groupUniqueCounts(overallPayments, p => p.college || "(NO COLLEGE)");
+    const overallYearRows = groupUniqueCounts(overallPayments, p => p.year || "(NO YEAR)");
+
+    const table = (title, rows, keyLabel) => `
+      <div style="font-weight:900; margin-bottom:10px;">${title}</div>
+      <table>
+        <thead><tr><th>${keyLabel}</th><th class="right"># Paid</th><th class="right">Total Amount</th></tr></thead>
+        <tbody>
+          ${rows.length ? rows.map(r=>`
+            <tr>
+              <td>${escapeHtml(r.key)}</td>
+              <td class="right">${r.paidStudents}</td>
+              <td class="right">${peso(r.totalAmount)}</td>
+            </tr>
+          `).join("") : `<tr><td colspan="3" class="muted">No data</td></tr>`}
+        </tbody>
+      </table>
+    `;
+
     $("overallSummary").innerHTML = `
+      <div class="pill" style="display:inline-block; margin-bottom:12px;">
+        Overall unique students: <b>${overallTotalStudents}</b> · Total: <b>${peso(overallTotalAmount)}</b>
+      </div>
+      <div style="height:10px"></div>
+      ${table("Number of Paid Students per College (Overall)", overallCollegeRows, "College")}
+      <div style="height:14px"></div>
+      ${table("Number of Paid Students per Year Level (Overall)", overallYearRows, "Year Level")}
+      <div style="height:14px"></div>
       <div style="font-weight:900; margin-bottom:10px;">Totals per Day</div>
       <table>
         <thead><tr><th>Day</th><th class="right"># Paid</th><th class="right">Total Amount</th></tr></thead>
@@ -411,15 +742,21 @@
           ${DAYS.map(d=>`
             <tr>
               <td>DAY ${d}</td>
-              <td class="right">${overall.byDay[d].paidStudents}</td>
-              <td class="right">${peso(overall.byDay[d].totalAmount)}</td>
+              <td class="right">${byDay[d].paidStudents}</td>
+              <td class="right">${peso(byDay[d].totalAmount)}</td>
             </tr>
           `).join("")}
         </tbody>
       </table>
     `;
+
+    // Overall pie by college (students)
+    renderPieChart("overallPie", overallCollegeRows, { hintId: "overallPieHint", donut: true });
   }
 
+  // -------------------------
+  // DAY rendering (tables + day pie by college)
+  // -------------------------
   let SELECTED = { day:"", college:"" };
 
   function renderDay(day){
@@ -458,40 +795,13 @@
 
   function renderDaySummary(day){
     const uploads = loadUploads();
-    const allPayments = [];
-
-    for(const col of DEFAULT_COLLEGES){
-      const key = getKey(day, col);
-      const entry = uploads[key];
-      if(entry && Array.isArray(entry.payments)){
-        allPayments.push(...entry.payments);
-      }
-    }
+    const allPayments = collectAllPaymentsForDay(uploads, day);
 
     const u = uniqueStudents(allPayments);
     $("dayPill").textContent = `${u.size} unique students · ${peso(u.size * FIXED_AMOUNT)}`;
 
-    const byCollege = {};
-    for(const p of allPayments){
-      const c = p.college || "(NO COLLEGE)";
-      byCollege[c] = byCollege[c] || [];
-      byCollege[c].push(p);
-    }
-    const collegeRows = Object.keys(byCollege).map(k=>{
-      const u2 = uniqueStudents(byCollege[k]);
-      return { key:k, paidStudents:u2.size, totalAmount:u2.size*FIXED_AMOUNT };
-    }).sort((a,b)=>b.paidStudents-a.paidStudents);
-
-    const byYear = {};
-    for(const p of allPayments){
-      const y = p.year || "(NO YEAR)";
-      byYear[y] = byYear[y] || [];
-      byYear[y].push(p);
-    }
-    const yearRows = Object.keys(byYear).map(k=>{
-      const u2 = uniqueStudents(byYear[k]);
-      return { key:k, paidStudents:u2.size, totalAmount:u2.size*FIXED_AMOUNT };
-    }).sort((a,b)=>b.paidStudents-a.paidStudents);
+    const collegeRows = groupUniqueCounts(allPayments, p => p.college || "(NO COLLEGE)");
+    const yearRows = groupUniqueCounts(allPayments, p => p.year || "(NO YEAR)");
 
     const table = (title, rows, keyLabel) => `
       <div style="font-weight:900; margin-bottom:10px;">${title}</div>
@@ -510,8 +820,14 @@
       <div style="height:14px"></div>
       ${table("Number of Paid Students per Year Level", yearRows, "Year Level")}
     `;
+
+    // Day pie by college
+    renderPieChart("dayPie", collegeRows, { hintId: "dayPieHint", donut: true });
   }
 
+  // -------------------------
+  // Tabs / upload / list (unchanged behavior)
+  // -------------------------
   function setTab(which){
     const infoBtn = $("tabInfoBtn");
     const listBtn = $("tabListBtn");
@@ -635,7 +951,6 @@
     const body = $("listBody");
     const count = $("listCount");
 
-    // Search filter
     if(input){
       input.addEventListener("input", ()=>{
         const q = input.value.trim().toLowerCase();
@@ -652,7 +967,7 @@
           ? filtered.map(p => rowHTML(p)).join("")
           : `<tr><td colspan="7" class="muted">No matches</td></tr>`;
 
-        bindDeleteButtons(); // rebind after filtering
+        bindDeleteButtons();
       });
     }
 
@@ -660,7 +975,6 @@
   }
 
   function bindDeleteButtons(){
-    // ✅ Bind only within the list tab to avoid other Delete buttons
     document.querySelectorAll("#tabList button[data-del]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
         const id = btn.getAttribute("data-del");
@@ -688,14 +1002,11 @@
     };
 
     saveUploads(uploads);
-
     toast("Record deleted ✅");
 
-    // ✅ refresh day view + keep current upload open
     renderDay(day);
     openCollegeUpload(day, college);
 
-    // ✅ stay in list tab
     setTab("list");
     bindListEvents();
   }
@@ -731,7 +1042,6 @@
 
         toast(`Uploaded <b>DAY ${day} — ${college}</b> ✅`);
 
-        // ✅ refresh only day view (no renderHome redirect logic)
         renderDay(day);
         openCollegeUpload(day, college);
       }catch(e){
@@ -793,14 +1103,6 @@
     localStorage.removeItem(STORAGE_KEY);
     toast("All uploaded data wiped ✅");
     init();
-  }
-
-  function escapeHtml(s){
-    return String(s||"")
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;");
   }
 
   // Events
