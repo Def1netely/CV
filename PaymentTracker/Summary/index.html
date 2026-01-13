@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>University Payment Summary (Offline)</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --card:#111a2e;
+      --muted:#9fb0d0;
+      --text:#e9efff;
+      --accent:#5dd6c7;
+      --danger:#ff6b6b;
+      --border:rgba(255,255,255,.08);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(93,214,199,.18), transparent 60%),
+                  radial-gradient(900px 500px at 90% 0%, rgba(132,111,255,.18), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      min-height:100vh;
+      padding: 28px 14px 40px;
+    }
+    .wrap{max-width: 1200px; margin: 0 auto;}
+
+    header{
+      display:flex;
+      flex-wrap:wrap;
+      gap:16px;
+      align-items:flex-end;
+      justify-content:space-between;
+      margin-bottom: 18px;
+    }
+    h1{margin:0; font-size: 28px; letter-spacing: .2px;}
+    .subtitle{margin: 6px 0 0; color: var(--muted); font-size: 14px; line-height:1.35;}
+
+    .pill{font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.18); color: var(--muted)}
+
+    .grid{display:grid; grid-template-columns: 1fr; gap: 18px;}
+    .cards{display:grid; grid-template-columns: repeat(5, 1fr); gap: 12px;}
+    @media (max-width: 980px){ .cards{grid-template-columns: repeat(2, 1fr);} }
+
+    .cards3{display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;}
+    @media (max-width: 980px){ .cards3{grid-template-columns: repeat(2, 1fr);} }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .card .hd h2{ margin:0; font-size: 15px; letter-spacing:.2px; }
+    .card .bd{ padding: 16px; }
+
+    .btns{display:flex; gap: 10px; flex-wrap:wrap; align-items:center;}
+    button{border:0; cursor:pointer; padding:10px 12px; border-radius:12px; font-weight:700; letter-spacing:.15px;}
+    .primary{background: var(--accent); color: #07221f;}
+    .ghost{background: rgba(255,255,255,.08); color: var(--text); border: 1px solid rgba(255,255,255,.12)}
+    .danger{background: rgba(255,107,107,.15); color: #ffd7d7; border: 1px solid rgba(255,107,107,.28)}
+    .activeTab{ border-color: rgba(93,214,199,.7) !important; box-shadow: 0 0 0 4px rgba(93,214,199,.10); }
+
+    .tile{
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.16);
+      border-radius: 16px;
+      padding: 14px;
+      cursor:pointer;
+      transition: transform .12s ease, border-color .12s ease;
+      user-select:none;
+      min-height: 96px;
+    }
+    .tile:hover{ transform: translateY(-2px); border-color: rgba(93,214,199,.5); }
+    .tile .k{ font-size: 12px; color: var(--muted); }
+    .tile .v{ font-size: 20px; font-weight: 900; margin-top: 6px; letter-spacing:.2px; }
+    .tile .s{ font-size: 12px; color: rgba(233,239,255,.75); margin-top: 8px; line-height:1.2; }
+
+    .mini{ font-size: 12px; color: var(--muted); margin-top: 10px; line-height:1.35; }
+
+    table{width:100%; border-collapse: collapse;}
+    th, td{padding: 10px 10px; border-bottom: 1px solid rgba(255,255,255,.08); text-align:left; font-size: 13px; white-space:nowrap;}
+    th{color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing:.2px;}
+    .right{ text-align:right; }
+    .mono{font-family: var(--mono);}
+
+    .crumbs{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .crumbs a{color: var(--muted); text-decoration:none; border-bottom:1px dashed rgba(255,255,255,.18)}
+    .crumbs a:hover{color: var(--text)}
+    .muted{color: var(--muted)}
+
+    .toast{
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(17,26,46,.9);
+      box-shadow: var(--shadow);
+      max-width: 360px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: .18s ease;
+      pointer-events:none;
+      font-size: 13px;
+      color: var(--text);
+      z-index: 50;
+    }
+    .toast.show{opacity:1; transform: translateY(0);}
+    .toast b{color: var(--accent)}
+
+    .drop{
+      border: 1px dashed rgba(255,255,255,.18);
+      border-radius: 16px;
+      padding: 14px;
+      background: rgba(0,0,0,.14);
+      margin-top: 10px;
+    }
+
+    .searchRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-bottom: 12px;
+    }
+    .searchRow input{
+      width: 320px; max-width:100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      outline:none;
+    }
+    .tableWrap{ overflow:auto; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); }
+
+    .tabBody{ display:none; }
+    .tabBody.active{ display:block; }
+
+    canvas{ display:block; width:100%; }
+    .chartTip{
+      position: fixed;
+      z-index: 99;
+      pointer-events:none;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(17,26,46,.95);
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.25;
+      transform: translate(10px, 10px);
+      opacity: 0;
+      transition: opacity .08s ease;
+    }
+    .chartTip.show{ opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1 id="pageTitle">University Payment Summary</h1>
+        <div class="subtitle" id="pageSubtitle">
+          Day 1–5 summary per college. Upload JSON exports from each tracker. Amount is fixed at <b>₱60</b> per paid student.
+        </div>
+        <div class="crumbs" id="crumbs"></div>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+        <div class="pill" id="filesPill">0 trackers uploaded</div>
+        <div class="pill" id="studentsPill">0 students</div>
+        <div class="pill" id="totalPill">Total: ₱0</div>
+      </div>
+    </header>
+
+    <!-- HOME VIEW -->
+    <section id="homeView" class="grid" style="display:none;">
+      <div class="card">
+        <div class="hd">
+          <h2>Days 1–5</h2>
+          <div class="btns">
+            <button class="ghost" id="exportSummaryBtn" type="button">Export Summary CSV</button>
+            <button class="danger" id="wipeBtn" type="button">Wipe All Uploaded Data</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div class="cards" id="dayCards"></div>
+          <div class="mini">Tip: Click a day → choose a college → upload its exported JSON.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <h2>Overall Summary</h2>
+          <div class="pill">Overall = across all uploads</div>
+        </div>
+        <div class="bd" id="overallSummary"></div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <h2>Overall Visual</h2>
+          <div class="pill">Pie = paid students per college</div>
+        </div>
+        <div class="bd">
+          <canvas id="overallPie" style="width:100%; height:340px;"></canvas>
+          <div class="mini" id="overallPieHint">Hover slices to see exact values.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DAY VIEW -->
+    <section id="dayView" class="grid" style="display:none;">
+      <div class="card">
+        <div class="hd">
+          <h2 id="dayTitle">Day</h2>
+          <div class="btns">
+            <button class="ghost" id="backHomeBtn" type="button">← Home</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div class="cards3" id="collegeCards"></div>
+          <div class="mini">Click a college to upload its JSON export for this day.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <h2 id="uploadTitle">Upload</h2>
+          <div class="btns">
+            <button class="ghost activeTab" id="tabInfoBtn" type="button">Upload Info</button>
+            <button class="ghost" id="tabListBtn" type="button" disabled>View List</button>
+
+            <label class="ghost" style="display:inline-flex;align-items:center;gap:10px;cursor:pointer;">
+              Choose JSON
+              <input id="jsonInput" type="file" accept="application/json,.json" style="display:none" />
+            </label>
+
+            <button class="danger" id="removeCollegeBtn" type="button" style="display:none;">Remove This Upload</button>
+          </div>
+        </div>
+
+        <div class="bd" id="uploadPanel">
+          <div class="mini">Select a college to upload.</div>
+        </div>
+
+        <!-- Tabs Content -->
+        <div class="bd tabBody active" id="tabInfo"></div>
+        <div class="bd tabBody" id="tabList"></div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><h2>Day Summary</h2><div class="pill" id="dayPill">—</div></div>
+        <div class="bd" id="daySummary"></div>
+      </div>
+
+      <div class="card">
+        <div class="hd">
+          <h2>Day Visual</h2>
+          <div class="pill" id="dayPiePill">Pie = students per college</div>
+        </div>
+        <div class="bd">
+          <canvas id="dayPie" style="width:100%; height:340px;"></canvas>
+          <div class="mini" id="dayPieHint">Hover slices to see exact values.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const FIXED_AMOUNT = 60;
+  const DAYS = ["1","2","3","4","5"];
+  const STORAGE_KEY = "uni_uploaded_trackers_v1";
+  const DEFAULT_COLLEGES = ["CNSM", "COE", "CBAA", "CFAS", "COEd", "COA", "IIAIS", "CSSH", "CON"];
+
+  const $ = (id) => document.getElementById(id);
+  const peso = (n) => new Intl.NumberFormat('en-PH', {style:'currency', currency:'PHP', maximumFractionDigits:0}).format(Number(n||0));
+  const prettyDate = (iso) => {
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return String(iso||"");
+    return d.toLocaleString(undefined, { year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit" });
+  };
+
+  function toast(msg){
+    const t = $("toast");
+    t.innerHTML = msg;
+    t.classList.add("show");
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  function qs(){
+    const sp = new URLSearchParams(location.search);
+    return { day: sp.get("day") || "" };
+  }
+
+  function goHome(){ location.href = location.pathname; }
+  function goDay(day){ location.href = `${location.pathname}?day=${encodeURIComponent(day)}`; }
+
+  function setCrumbs(day){
+    const c = $("crumbs");
+    c.innerHTML = "";
+    const home = document.createElement("a");
+    home.href = location.pathname;
+    home.textContent = "Home";
+    c.appendChild(home);
+
+    if(day){
+      const sep = document.createElement("span");
+      sep.textContent = "›";
+      sep.className = "muted";
+      c.appendChild(sep);
+
+      const d = document.createElement("span");
+      d.textContent = `Day ${day}`;
+      d.className = "muted";
+      c.appendChild(d);
+    }
+  }
+
+  function loadUploads(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return {};
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === "object") ? parsed : {};
+    }catch(e){
+      return {};
+    }
+  }
+
+  function saveUploads(obj){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+  }
+
+  function getKey(day, college){
+    return `DAY${day}_${String(college||"").toUpperCase()}`;
+  }
+
+  function extractPaymentsFromJSON(payload){
+    if(Array.isArray(payload)) return payload;
+    if(payload && Array.isArray(payload.payments)) return payload.payments;
+    return [];
+  }
+
+  // normalize: ensure every payment has an id, and use studentName
+  function normalizePayments(rawPayments, day, college){
+    const out = [];
+    for(const p of (rawPayments||[])){
+      out.push({
+        id: p.id || crypto.randomUUID(),
+        day: String(p.day || day || "").trim(),
+        college: String(p.college || college || "").toUpperCase().trim(),
+        studentName: String(p.studentName || "").trim(),
+        year: p.year || p.yearLevel || "",
+        course: p.course || "",
+        receiptId: p.receiptId || "",
+        createdAt: p.createdAt || p.timestamp || ""
+      });
+    }
+    return out;
+  }
+
+  // Unique students by normalized name
+  function uniqueStudents(payments){
+    return new Set(
+      payments.map(p => String(p.studentName||"").trim().toLowerCase()).filter(Boolean)
+    );
+  }
+
+  function showView(which){
+    $("homeView").style.display = which === "home" ? "" : "none";
+    $("dayView").style.display = which === "day" ? "" : "none";
+  }
+
+  function escapeHtml(s){
+    return String(s||"")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;");
+  }
+
+  // -------------------------
+  // Aggregation helpers (unique per group)
+  // -------------------------
+  function groupUniqueCounts(payments, keyFn){
+    const map = {};
+    for(const p of payments){
+      const k = String(keyFn(p) || "(UNKNOWN)");
+      map[k] = map[k] || new Set();
+      const nm = String(p.studentName||"").trim().toLowerCase();
+      if(nm) map[k].add(nm);
+    }
+    const rows = Object.keys(map).map(k => ({
+      key: k,
+      paidStudents: map[k].size,
+      totalAmount: map[k].size * FIXED_AMOUNT
+    })).sort((a,b)=>b.paidStudents-a.paidStudents);
+    return rows;
+  }
+
+  function collectAllPaymentsForDay(uploads, day){
+    const all = [];
+    for(const col of DEFAULT_COLLEGES){
+      const key = getKey(day, col);
+      const entry = uploads[key];
+      if(entry && Array.isArray(entry.payments)) all.push(...entry.payments);
+    }
+    return all;
+  }
+
+  function collectAllPaymentsOverall(uploads){
+    const all = [];
+    for(const d of DAYS){
+      all.push(...collectAllPaymentsForDay(uploads, d));
+    }
+    return all;
+  }
+
+  function computeDayTotals(uploads){
+    const totals = {};
+    for(const d of DAYS){
+      const allPayments = collectAllPaymentsForDay(uploads, d);
+      const u = uniqueStudents(allPayments);
+      totals[d] = { paidStudents: u.size, totalAmount: u.size * FIXED_AMOUNT };
+    }
+    return totals;
+  }
+
+  // -------------------------
+  // Offline Pie Chart (canvas)
+  // -------------------------
+  const PIE_PALETTE = [
+    "#5dd6c7","#846fff","#ff6b6b","#ffd166","#06d6a0",
+    "#118ab2","#ef476f","#caffbf","#9bf6ff","#bdb2ff",
+    "#ffc6ff","#a3f7bf"
+  ];
+
+  const __pieStates = {}; // by canvasId
+
+  function ensureChartTooltip(){
+    let tip = document.getElementById("chartTip");
+    if(tip) return tip;
+    tip = document.createElement("div");
+    tip.id = "chartTip";
+    tip.className = "chartTip";
+    document.body.appendChild(tip);
+    return tip;
+  }
+
+  function renderPieChart(canvasId, rows, opts = {}){
+    const canvas = $(canvasId);
+    if(!canvas) return;
+
+    const tip = ensureChartTooltip();
+    const hintEl = opts.hintId ? $(opts.hintId) : null;
+
+    const data = (rows || []).filter(r => (r.paidStudents||0) > 0);
+    const total = data.reduce((a,r)=>a + (r.paidStudents||0), 0);
+
+    if(hintEl){
+      hintEl.textContent = total
+        ? "Hover slices to see exact values."
+        : "No data yet. Upload tracker JSON files to populate this chart.";
+    }
+
+    // Resize for crispness
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(280, Math.floor(rect.width));
+    const h = Math.max(240, Math.floor(rect.height || 340));
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const cx = w/2, cy = h/2;
+    const r = Math.min(w, h) * 0.38; // leave room for legend-like labels
+    const inner = Math.max(0, r * (opts.donut ? 0.55 : 0));
+
+    ctx.clearRect(0,0,w,h);
+
+    // Draw empty state ring
+    if(!total){
+      ctx.strokeStyle = "rgba(255,255,255,.12)";
+      ctx.lineWidth = 16;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(159,176,208,.9)";
+      ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+      const msg = "No data";
+      const tw = ctx.measureText(msg).width;
+      ctx.fillText(msg, cx - tw/2, cy + 4);
+      return;
+    }
+
+    // Angles
+    let start = -Math.PI/2;
+    const slices = data.map((row, i) => {
+      const frac = row.paidStudents / total;
+      const ang = frac * Math.PI*2;
+      const end = start + ang;
+      const color = PIE_PALETTE[i % PIE_PALETTE.length];
+      const s = { i, row, start, end, color };
+      start = end;
+      return s;
+    });
+
+    // Draw slices
+    for(const s of slices){
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, s.start, s.end);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(s.color, 0.55);
+      ctx.fill();
+
+      ctx.strokeStyle = hexToRgba(s.color, 0.95);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Donut hole
+    if(inner > 0){
+      ctx.beginPath();
+      ctx.arc(cx, cy, inner, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(11,18,32,.55)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.10)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Center text
+    ctx.fillStyle = "rgba(233,239,255,.9)";
+    ctx.font = "700 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+    const centerA = `${total} students`;
+    const twA = ctx.measureText(centerA).width;
+    ctx.fillText(centerA, cx - twA/2, cy - 2);
+
+    ctx.fillStyle = "rgba(159,176,208,.9)";
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+    const centerB = peso(total * FIXED_AMOUNT);
+    const twB = ctx.measureText(centerB).width;
+    ctx.fillText(centerB, cx - twB/2, cy + 16);
+
+    // Legend-ish list (top 6)
+    const top = data.slice(0, 6);
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+    let lx = 14, ly = 16;
+    for(let i=0; i<top.length; i++){
+      const row = top[i];
+      const color = PIE_PALETTE[i % PIE_PALETTE.length];
+      ctx.fillStyle = hexToRgba(color, 0.95);
+      ctx.fillRect(lx, ly - 9, 10, 10);
+      ctx.fillStyle = "rgba(233,239,255,.85)";
+      const label = `${row.key}: ${row.paidStudents}`;
+      ctx.fillText(label, lx + 16, ly);
+      ly += 18;
+    }
+
+    function hexToRgba(hex, a){
+      const h = String(hex||"").replace("#","");
+      const full = h.length === 3 ? h.split("").map(ch=>ch+ch).join("") : h;
+      const r = parseInt(full.slice(0,2),16);
+      const g = parseInt(full.slice(2,4),16);
+      const b = parseInt(full.slice(4,6),16);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+
+    function hitTest(mx,my){
+      const dx = mx - cx;
+      const dy = my - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if(dist > r || dist < inner) return null;
+
+      let ang = Math.atan2(dy, dx);
+      // normalize so -PI/2 is top
+      // ang in [-PI, PI], convert to [0, 2PI)
+      if(ang < -Math.PI/2) ang += Math.PI*2;
+      // shift so our start is -PI/2
+      // compare in shifted space:
+      const shifted = ang;
+      // Each slice start/end are in radians, also starting from -PI/2 in standard space.
+      // We'll compute slice angle in same adjusted approach:
+      for(const s of slices){
+        // map s.start/end to [0,2PI) relative to -PI/2:
+        const ss = (s.start + Math.PI/2 + Math.PI*2) % (Math.PI*2);
+        const ee = (s.end + Math.PI/2 + Math.PI*2) % (Math.PI*2);
+        const a2 = (shifted + Math.PI/2 + Math.PI*2) % (Math.PI*2);
+
+        // handle wrap-around
+        if(ss <= ee){
+          if(a2 >= ss && a2 <= ee) return s;
+        }else{
+          if(a2 >= ss || a2 <= ee) return s;
+        }
+      }
+      return null;
+    }
+
+    function onMove(e){
+      const rct = canvas.getBoundingClientRect();
+      const mx = e.clientX - rct.left;
+      const my = e.clientY - rct.top;
+      const hit = hitTest(mx,my);
+      if(!hit){
+        tip.classList.remove("show");
+        canvas.style.cursor = "default";
+        return;
+      }
+      canvas.style.cursor = "pointer";
+
+      const row = hit.row;
+      const pct = Math.round((row.paidStudents/total)*100);
+      tip.innerHTML = `
+        <div style="font-weight:900; margin-bottom:4px;">${escapeHtml(row.key)}</div>
+        <div><span class="muted">Paid students:</span> <b>${row.paidStudents}</b> (${pct}%)</div>
+        <div><span class="muted">Amount:</span> <b>${peso(row.paidStudents * FIXED_AMOUNT)}</b></div>
+      `;
+      tip.style.left = `${e.clientX}px`;
+      tip.style.top = `${e.clientY}px`;
+      tip.classList.add("show");
+    }
+
+    function onLeave(){
+      tip.classList.remove("show");
+      canvas.style.cursor = "default";
+    }
+
+    // Bind (avoid duplicate)
+    if(__pieStates[canvasId]){
+      canvas.removeEventListener("mousemove", __pieStates[canvasId].onMove);
+      canvas.removeEventListener("mouseleave", __pieStates[canvasId].onLeave);
+    }
+    canvas.addEventListener("mousemove", onMove);
+    canvas.addEventListener("mouseleave", onLeave);
+    __pieStates[canvasId] = { onMove, onLeave };
+  }
+
+  // -------------------------
+  // HOME rendering (overall tables + overall pie by college)
+  // -------------------------
+  function renderHome(){
+    showView("home");
+    setCrumbs("");
+
+    const uploads = loadUploads();
+
+    // Pills
+    $("filesPill").textContent = `${Object.keys(uploads).length} trackers uploaded`;
+
+    // Day cards based on day totals (unique per day, across uploaded colleges)
+    const byDay = computeDayTotals(uploads);
+
+    const totalStudentsAllDays = DAYS.reduce((acc, d)=> acc + (byDay[d]?.paidStudents || 0), 0);
+    const totalAmountAllDays = totalStudentsAllDays * FIXED_AMOUNT;
+
+    $("studentsPill").textContent = `${totalStudentsAllDays} students`;
+    $("totalPill").textContent = `Total: ${peso(totalAmountAllDays)}`;
+
+    // Day tiles
+    const dayCards = $("dayCards");
+    dayCards.innerHTML = "";
+    for(const d of DAYS){
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.innerHTML = `
+        <div class="k">DAY ${d}</div>
+        <div class="v">${peso(byDay[d].totalAmount)}</div>
+        <div class="s">${byDay[d].paidStudents} unique students</div>
+      `;
+      tile.addEventListener("click", ()=> goDay(d));
+      dayCards.appendChild(tile);
+    }
+
+    // Overall payments across ALL days
+    const overallPayments = collectAllPaymentsOverall(uploads);
+    const overallUnique = uniqueStudents(overallPayments);
+    const overallTotalStudents = overallUnique.size;
+    const overallTotalAmount = overallTotalStudents * FIXED_AMOUNT;
+
+    // Overall by college + by year (unique per group)
+    const overallCollegeRows = groupUniqueCounts(overallPayments, p => p.college || "(NO COLLEGE)");
+    const overallYearRows = groupUniqueCounts(overallPayments, p => p.year || "(NO YEAR)");
+
+    const table = (title, rows, keyLabel) => `
+      <div style="font-weight:900; margin-bottom:10px;">${title}</div>
+      <table>
+        <thead><tr><th>${keyLabel}</th><th class="right"># Paid</th><th class="right">Total Amount</th></tr></thead>
+        <tbody>
+          ${rows.length ? rows.map(r=>`
+            <tr>
+              <td>${escapeHtml(r.key)}</td>
+              <td class="right">${r.paidStudents}</td>
+              <td class="right">${peso(r.totalAmount)}</td>
+            </tr>
+          `).join("") : `<tr><td colspan="3" class="muted">No data</td></tr>`}
+        </tbody>
+      </table>
+    `;
+
+    $("overallSummary").innerHTML = `
+      <div class="pill" style="display:inline-block; margin-bottom:12px;">
+        Overall unique students: <b>${overallTotalStudents}</b> · Total: <b>${peso(overallTotalAmount)}</b>
+      </div>
+      <div style="height:10px"></div>
+      ${table("Number of Paid Students per College (Overall)", overallCollegeRows, "College")}
+      <div style="height:14px"></div>
+      ${table("Number of Paid Students per Year Level (Overall)", overallYearRows, "Year Level")}
+      <div style="height:14px"></div>
+      <div style="font-weight:900; margin-bottom:10px;">Totals per Day</div>
+      <table>
+        <thead><tr><th>Day</th><th class="right"># Paid</th><th class="right">Total Amount</th></tr></thead>
+        <tbody>
+          ${DAYS.map(d=>`
+            <tr>
+              <td>DAY ${d}</td>
+              <td class="right">${byDay[d].paidStudents}</td>
+              <td class="right">${peso(byDay[d].totalAmount)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+
+    // Overall pie by college (students)
+    renderPieChart("overallPie", overallCollegeRows, { hintId: "overallPieHint", donut: true });
+  }
+
+  // -------------------------
+  // DAY rendering (tables + day pie by college)
+  // -------------------------
+  let SELECTED = { day:"", college:"" };
+
+  function renderDay(day){
+    showView("day");
+    setCrumbs(day);
+
+    SELECTED = { day, college:"" };
+    $("dayTitle").textContent = `DAY ${day} — Colleges`;
+
+    $("uploadPanel").innerHTML = `<div class="mini">Select a college to upload.</div>`;
+    $("removeCollegeBtn").style.display = "none";
+
+    setTab("info");
+    $("tabListBtn").disabled = true;
+
+    const uploads = loadUploads();
+    const box = $("collegeCards");
+    box.innerHTML = "";
+
+    for(const col of DEFAULT_COLLEGES){
+      const key = getKey(day, col);
+      const hasUpload = !!uploads[key];
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.innerHTML = `
+        <div class="k">${col}</div>
+        <div class="v">${hasUpload ? "Uploaded ✅" : "Upload JSON"}</div>
+        <div class="s">${hasUpload ? `${uploads[key].paidStudents} students` : `Tap to upload Day ${day} · ${col}`}</div>
+      `;
+      tile.addEventListener("click", ()=> openCollegeUpload(day, col));
+      box.appendChild(tile);
+    }
+
+    renderDaySummary(day);
+  }
+
+  function renderDaySummary(day){
+    const uploads = loadUploads();
+    const allPayments = collectAllPaymentsForDay(uploads, day);
+
+    const u = uniqueStudents(allPayments);
+    $("dayPill").textContent = `${u.size} unique students · ${peso(u.size * FIXED_AMOUNT)}`;
+
+    const collegeRows = groupUniqueCounts(allPayments, p => p.college || "(NO COLLEGE)");
+    const yearRows = groupUniqueCounts(allPayments, p => p.year || "(NO YEAR)");
+
+    const table = (title, rows, keyLabel) => `
+      <div style="font-weight:900; margin-bottom:10px;">${title}</div>
+      <table>
+        <thead><tr><th>${keyLabel}</th><th class="right"># Paid</th><th class="right">Total Amount</th></tr></thead>
+        <tbody>
+          ${rows.length ? rows.map(r=>`
+            <tr><td>${escapeHtml(r.key)}</td><td class="right">${r.paidStudents}</td><td class="right">${peso(r.totalAmount)}</td></tr>
+          `).join("") : `<tr><td colspan="3" class="muted">No data</td></tr>`}
+        </tbody>
+      </table>
+    `;
+
+    $("daySummary").innerHTML = `
+      ${table("Number of Paid Students per College", collegeRows, "College")}
+      <div style="height:14px"></div>
+      ${table("Number of Paid Students per Year Level", yearRows, "Year Level")}
+    `;
+
+    // Day pie by college
+    renderPieChart("dayPie", collegeRows, { hintId: "dayPieHint", donut: true });
+  }
+
+  // -------------------------
+  // Tabs / upload / list (unchanged behavior)
+  // -------------------------
+  function setTab(which){
+    const infoBtn = $("tabInfoBtn");
+    const listBtn = $("tabListBtn");
+    const info = $("tabInfo");
+    const list = $("tabList");
+
+    info.classList.remove("active");
+    list.classList.remove("active");
+    infoBtn.classList.remove("activeTab");
+    listBtn.classList.remove("activeTab");
+
+    if(which === "list"){
+      list.classList.add("active");
+      listBtn.classList.add("activeTab");
+    } else {
+      info.classList.add("active");
+      infoBtn.classList.add("activeTab");
+    }
+  }
+
+  function openCollegeUpload(day, college){
+    SELECTED = { day, college };
+    const key = getKey(day, college);
+    const uploads = loadUploads();
+    const existing = uploads[key];
+
+    $("uploadTitle").textContent = `DAY ${day} — ${college}`;
+    $("removeCollegeBtn").style.display = existing ? "" : "none";
+    $("tabListBtn").disabled = !existing;
+
+    const msg = existing
+      ? `<b>Uploaded ✅</b><br><span class="mono">${escapeHtml(existing.fileName || "uploaded.json")}</span><br>
+         <span class="mini">${existing.paidStudents} unique students → ${peso(existing.paidStudents * FIXED_AMOUNT)}</span>`
+      : `<div class="mini">No upload yet for <b>DAY ${day} — ${college}</b>.</div>`;
+
+    $("uploadPanel").innerHTML = `
+      <div>${msg}</div>
+      <div class="drop" id="dropZone">
+        <b>Drag & drop</b> JSON file here, or use <b>Choose JSON</b>.
+        <div class="mini">This will replace the current upload for this day + college.</div>
+      </div>
+    `;
+
+    $("tabInfo").innerHTML = existing
+      ? `<div class="mini">Use <b>View List</b> to see all payment records for this upload.</div>`
+      : `<div class="mini">Upload a JSON file to enable <b>View List</b>.</div>`;
+
+    $("tabList").innerHTML = existing
+      ? renderListTab(existing.payments || [])
+      : `<div class="mini">No records.</div>`;
+
+    setTab("info");
+
+    const dz = $("dropZone");
+    dz.addEventListener("dragover", e => { e.preventDefault(); dz.style.borderColor = "rgba(93,214,199,.7)"; });
+    dz.addEventListener("dragleave", () => { dz.style.borderColor = "rgba(255,255,255,.18)"; });
+    dz.addEventListener("drop", e => {
+      e.preventDefault();
+      dz.style.borderColor = "rgba(255,255,255,.18)";
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if(file) importJsonFile(file);
+    });
+  }
+
+  function renderListTab(payments){
+    return `
+      <div class="searchRow">
+        <input id="listSearch" placeholder="Search receipt, name, year, course…" />
+        <div class="pill" id="listCount">${payments.length} records</div>
+      </div>
+
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Receipt ID</th>
+              <th>Student Name</th>
+              <th>Year</th>
+              <th>College</th>
+              <th>Course</th>
+              <th style="width:90px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="listBody">
+            ${payments.map(p => rowHTML(p)).join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mini">Deleting here removes the row from this uploaded tracker stored in your browser.</div>
+    `;
+  }
+
+  function rowHTML(p){
+    return `
+      <tr>
+        <td>${escapeHtml(prettyDate(p.createdAt))}</td>
+        <td class="mono">${escapeHtml(p.receiptId || "")}</td>
+        <td>${escapeHtml(p.studentName || "")}</td>
+        <td>${escapeHtml(p.year || "")}</td>
+        <td>${escapeHtml(p.college || "")}</td>
+        <td>${escapeHtml(p.course || "")}</td>
+        <td><button class="danger" data-del="${escapeHtml(p.id)}">Delete</button></td>
+      </tr>
+    `;
+  }
+
+  function bindListEvents(){
+    const day = SELECTED.day;
+    const college = SELECTED.college;
+    if(!day || !college) return;
+
+    const key = getKey(day, college);
+    const uploads = loadUploads();
+    const existing = uploads[key];
+    if(!existing) return;
+
+    const payments = existing.payments || [];
+    const input = $("listSearch");
+    const body = $("listBody");
+    const count = $("listCount");
+
+    if(input){
+      input.addEventListener("input", ()=>{
+        const q = input.value.trim().toLowerCase();
+        const filtered = !q ? payments : payments.filter(p =>
+          (p.receiptId||"").toLowerCase().includes(q) ||
+          (p.studentName||"").toLowerCase().includes(q) ||
+          (p.year||"").toLowerCase().includes(q) ||
+          (p.college||"").toLowerCase().includes(q) ||
+          (p.course||"").toLowerCase().includes(q)
+        );
+
+        count.textContent = `${filtered.length} records`;
+        body.innerHTML = filtered.length
+          ? filtered.map(p => rowHTML(p)).join("")
+          : `<tr><td colspan="7" class="muted">No matches</td></tr>`;
+
+        bindDeleteButtons();
+      });
+    }
+
+    bindDeleteButtons();
+  }
+
+  function bindDeleteButtons(){
+    document.querySelectorAll("#tabList button[data-del]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-del");
+        deletePaymentFromUpload(SELECTED.day, SELECTED.college, id);
+      });
+    });
+  }
+
+  function deletePaymentFromUpload(day, college, id){
+    const key = getKey(day, college);
+    const uploads = loadUploads();
+    const existing = uploads[key];
+    if(!existing) return;
+
+    const ok = confirm("Delete this record from this uploaded tracker?");
+    if(!ok) return;
+
+    const nextPayments = (existing.payments || []).filter(p => String(p.id) !== String(id));
+    const u = uniqueStudents(nextPayments);
+
+    uploads[key] = {
+      ...existing,
+      payments: nextPayments,
+      paidStudents: u.size
+    };
+
+    saveUploads(uploads);
+    toast("Record deleted ✅");
+
+    renderDay(day);
+    openCollegeUpload(day, college);
+
+    setTab("list");
+    bindListEvents();
+  }
+
+  function importJsonFile(file){
+    if(!SELECTED.day || !SELECTED.college){
+      toast("Select a college first.");
+      return;
+    }
+    const day = SELECTED.day;
+    const college = SELECTED.college;
+    const key = getKey(day, college);
+
+    const fr = new FileReader();
+    fr.onload = () => {
+      try{
+        const payload = JSON.parse(String(fr.result||"{}"));
+        const rawPayments = extractPaymentsFromJSON(payload);
+        const normalized = normalizePayments(rawPayments, day, college);
+
+        const u = uniqueStudents(normalized);
+
+        const uploads = loadUploads();
+        uploads[key] = {
+          day,
+          college,
+          fileName: file.name,
+          uploadedAt: new Date().toISOString(),
+          paidStudents: u.size,
+          payments: normalized
+        };
+        saveUploads(uploads);
+
+        toast(`Uploaded <b>DAY ${day} — ${college}</b> ✅`);
+
+        renderDay(day);
+        openCollegeUpload(day, college);
+      }catch(e){
+        toast(`<b>Error:</b> Invalid JSON file.`);
+      }
+    };
+    fr.readAsText(file);
+  }
+
+  function removeCollegeUpload(){
+    if(!SELECTED.day || !SELECTED.college) return;
+    const day = SELECTED.day;
+    const college = SELECTED.college;
+    const key = getKey(day, college);
+
+    const uploads = loadUploads();
+    if(!uploads[key]) return;
+
+    const ok = confirm(`Remove upload for DAY ${day} — ${college}?`);
+    if(!ok) return;
+
+    delete uploads[key];
+    saveUploads(uploads);
+
+    toast(`Removed DAY ${day} — ${college}`);
+
+    renderDay(day);
+    openCollegeUpload(day, college);
+  }
+
+  function exportSummaryCSV(){
+    const uploads = loadUploads();
+    const lines = [];
+    lines.push(["Day","College","PaidStudents","TotalAmount"].join(","));
+
+    for(const d of DAYS){
+      for(const col of DEFAULT_COLLEGES){
+        const key = getKey(d, col);
+        const entry = uploads[key];
+        const paid = entry ? (entry.paidStudents || 0) : 0;
+        const amt = paid * FIXED_AMOUNT;
+        lines.push([`DAY ${d}`, col, paid, amt].join(","));
+      }
+    }
+
+    const blob = new Blob([lines.join("\n")], {type:"text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `summary_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Summary exported ✅");
+  }
+
+  function wipeAll(){
+    const ok = confirm("This will delete ALL uploaded JSON data (all days/colleges) on this browser. Continue?");
+    if(!ok) return;
+    localStorage.removeItem(STORAGE_KEY);
+    toast("All uploaded data wiped ✅");
+    init();
+  }
+
+  // Events
+  $("backHomeBtn").addEventListener("click", goHome);
+  $("exportSummaryBtn").addEventListener("click", exportSummaryCSV);
+  $("wipeBtn").addEventListener("click", wipeAll);
+  $("removeCollegeBtn").addEventListener("click", removeCollegeUpload);
+
+  $("jsonInput").addEventListener("change", (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(file) importJsonFile(file);
+    e.target.value = "";
+  });
+
+  $("tabInfoBtn").addEventListener("click", ()=>{
+    setTab("info");
+  });
+
+  $("tabListBtn").addEventListener("click", ()=>{
+    setTab("list");
+    bindListEvents();
+  });
+
+  function init(){
+    const { day } = qs();
+    if(!day) renderHome();
+    else renderDay(day);
+  }
+
+  init();
+</script>
+</body>
+</html>
